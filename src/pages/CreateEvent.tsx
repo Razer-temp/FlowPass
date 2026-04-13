@@ -41,6 +41,16 @@ export default function CreateEvent() {
     return defaultDraft;
   });
   const [eventId, setEventId] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState<string | null>(null);
+
+  const baseOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://flowpass.app';
+  const displayOrigin = baseOrigin.replace(/^https?:\/\//, '');
+
+  const handleCopy = (link: string, type: string) => {
+    navigator.clipboard.writeText(link);
+    setCopiedLink(type);
+    setTimeout(() => setCopiedLink(null), 2000);
+  };
 
   useEffect(() => {
     localStorage.setItem('flowpass_draft', JSON.stringify(draft));
@@ -564,10 +574,15 @@ export default function CreateEvent() {
                     <p className="text-sm text-dim mb-3">Your live control panel to monitor crowds and manage gates.</p>
                     <div className="flex gap-2">
                       <div className="flex-1 bg-background border border-white/10 rounded px-3 py-2 text-sm font-mono text-dim truncate">
-                        flowpass.app/organizer/{eventId}
+                        {displayOrigin}/organizer/{eventId}
                       </div>
-                      <button className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded transition-colors"><Copy className="w-4 h-4"/></button>
-                      <Link to={`/organizer/${eventId}`} className="px-4 py-2 bg-white text-background font-bold rounded text-sm hover:bg-white/90 transition-colors flex items-center gap-1">
+                      <button 
+                        onClick={() => handleCopy(`${baseOrigin}/organizer/${eventId}`, 'organizer')}
+                        className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded transition-colors"
+                      >
+                        {copiedLink === 'organizer' ? <CheckCircle2 className="w-4 h-4 text-go" /> : <Copy className="w-4 h-4"/>}
+                      </button>
+                      <Link to={`/organizer/${eventId}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-white text-background font-bold rounded text-sm hover:bg-white/90 transition-colors flex items-center gap-1">
                         Open <ExternalLink className="w-4 h-4"/>
                       </Link>
                     </div>
@@ -585,10 +600,15 @@ export default function CreateEvent() {
                     <p className="text-sm text-dim mb-3">Open this on the projector or LED boards inside the venue.</p>
                     <div className="flex gap-2">
                       <div className="flex-1 bg-background border border-white/10 rounded px-3 py-2 text-sm font-mono text-dim truncate">
-                        flowpass.app/screen/{eventId}
+                        {displayOrigin}/screen/{eventId}
                       </div>
-                      <button className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded transition-colors"><Copy className="w-4 h-4"/></button>
-                      <Link to={`/screen/${eventId}`} className="px-4 py-2 bg-white text-background font-bold rounded text-sm hover:bg-white/90 transition-colors flex items-center gap-1">
+                      <button 
+                        onClick={() => handleCopy(`${baseOrigin}/screen/${eventId}`, 'screen')}
+                        className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded transition-colors"
+                      >
+                        {copiedLink === 'screen' ? <CheckCircle2 className="w-4 h-4 text-go" /> : <Copy className="w-4 h-4"/>}
+                      </button>
+                      <Link to={`/screen/${eventId}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-white text-background font-bold rounded text-sm hover:bg-white/90 transition-colors flex items-center gap-1">
                         Open <ExternalLink className="w-4 h-4"/>
                       </Link>
                     </div>
@@ -606,9 +626,17 @@ export default function CreateEvent() {
                     <p className="text-sm text-dim mb-3">Share via WhatsApp or display at entry gates for attendees to get passes.</p>
                     <div className="flex gap-2 mb-6">
                       <div className="flex-1 bg-background border border-white/10 rounded px-3 py-2 text-sm font-mono text-dim truncate">
-                        flowpass.app/register/{eventId}
+                        {displayOrigin}/register/{eventId}
                       </div>
-                      <button className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded transition-colors"><Copy className="w-4 h-4"/></button>
+                      <button 
+                        onClick={() => handleCopy(`${baseOrigin}/register/${eventId}`, 'register')}
+                        className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded transition-colors"
+                      >
+                        {copiedLink === 'register' ? <CheckCircle2 className="w-4 h-4 text-go" /> : <Copy className="w-4 h-4"/>}
+                      </button>
+                      <Link to={`/register/${eventId}`} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-white text-background font-bold rounded text-sm hover:bg-white/90 transition-colors flex items-center gap-1">
+                        Open <ExternalLink className="w-4 h-4"/>
+                      </Link>
                     </div>
 
                     <div className="bg-background border border-white/10 rounded-xl p-6 flex items-center gap-6">

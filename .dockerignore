@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.local
+README.md
+implementation_plan.md
+task.md
+walkthrough.md
+Dockerfile
+.dockerignore
+.gcloudignore
+npm-debug.log
+error.log
