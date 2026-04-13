@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;500;700&family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0A0A0F;
+  --color-card: #12121A;
+  --color-go: #00FF87;
+  --color-wait: #FFB800;
+  --color-stop: #FF3B3B;
+  --color-done: #4A4A6A;
+  --color-dim: #8888AA;
+
+  --font-heading: "Syne", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-timer: "Bebas Neue", sans-serif;
+
+  --animate-marquee: marquee 30s linear infinite;
+  --animate-strobe: strobe 0.3s ease-in-out 3;
+  --animate-radar: radar 3s cubic-bezier(0, 0, 0.2, 1) infinite;
+
+  @keyframes marquee {
+    0% { transform: translateX(100vw); }
+    100% { transform: translateX(-100%); }
+  }
+  @keyframes strobe {
+    0%, 100% { background-color: #FF3B3B; }
+    50% { background-color: #450a0a; }
+  }
+  @keyframes radar {
+    0% { transform: scale(0.8); opacity: 0.8; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+}
+
+body {
+  background-color: var(--color-background);
+  color: #ffffff;
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
