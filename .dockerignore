@@ -3,6 +3,7 @@ dist
 .git
 .gitignore
 .env
+!.env.production
 .env.local
 README.md
 implementation_plan.md
