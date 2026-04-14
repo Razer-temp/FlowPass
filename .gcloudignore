@@ -3,6 +3,7 @@
 node_modules
 dist
 .env
+!.env.production
 .antigravityignore
 implementation_plan.md
 task.md
