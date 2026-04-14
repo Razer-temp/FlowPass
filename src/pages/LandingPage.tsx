@@ -2,10 +2,23 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { Ticket, Radio, ShieldCheck, Zap, Users, Smartphone, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
+import ChaosVsCalm from '../components/landing/ChaosVsCalm';
+import RolesSwitcher from '../components/landing/RolesSwitcher';
+import ScrollTimeline from '../components/landing/ScrollTimeline';
+import GlassCard from '../components/landing/GlassCard';
 export default function LandingPage() {
-  const [passState, setPassState] = useState<'WAIT' | 'GO'>('WAIT');
+  const [passState, setPassState] = useState<'WAIT' | 'ACTIVE'>('WAIT');
   const [scrollY, setScrollY] = useState(0);
+
+  // Auto-cycle the pass state for hero animation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPassState(s => s === 'WAIT' ? 'ACTIVE' : 'WAIT');
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
@@ -16,7 +29,7 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col">
       {/* HERO SECTION */}
-      <section className="relative pt-20 pb-32 overflow-hidden">
+      <section className="relative pt-8 md:pt-20 pb-12 md:pb-32 overflow-hidden">
         {/* Background Glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-go/5 rounded-full blur-[120px] pointer-events-none" />
         
@@ -27,29 +40,29 @@ export default function LandingPage() {
               LIVE · Built for physical event safety
             </div>
             
-            <h1 className="text-6xl md:text-7xl font-heading font-extrabold tracking-tight leading-[1.1] mb-6">
+            <h1 className="text-5xl md:text-7xl font-heading font-extrabold tracking-tight leading-[1.1] mb-6">
               End the<br />
               Post-Event<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-go to-emerald-500">Stampede.</span>
             </h1>
-            
-            <p className="text-xl text-dim mb-10 max-w-lg leading-relaxed">
+
+            <p className="text-lg md:text-xl text-dim mb-6 md:mb-10 max-w-lg leading-relaxed">
               Every attendee gets a smart digital exit pass. 33,000 people leave Wankhede in waves — not a life-threatening rush.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 mb-8">
+            <div className="flex flex-col sm:flex-row gap-4 mb-8 w-full sm:w-auto">
               <Link to="/create" className="px-8 py-4 bg-white text-background font-bold rounded-lg hover:bg-white/90 transition-colors flex items-center justify-center gap-2">
                 <Radio className="w-5 h-5" /> Create Event — I'm an Organizer
               </Link>
-              <Link to="/register/demo" className="px-8 py-4 bg-card border border-white/10 text-white font-bold rounded-lg hover:bg-white/5 transition-colors flex items-center justify-center gap-2">
+              <Link to="/events" className="px-8 py-4 bg-card border border-white/10 text-white font-bold rounded-lg hover:bg-white/5 transition-colors flex items-center justify-center gap-2">
                 <Ticket className="w-5 h-5" /> Get My Pass — I'm an Attendee
               </Link>
             </div>
             
-            <div className="flex items-center gap-6 text-sm text-dim font-medium">
-              <span className="flex items-center gap-1"><CheckCircle2 className="w-4 h-4 text-go" /> Free to use</span>
-              <span className="flex items-center gap-1"><CheckCircle2 className="w-4 h-4 text-go" /> No app download</span>
-              <span className="flex items-center gap-1"><CheckCircle2 className="w-4 h-4 text-go" /> Works on any phone</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 text-sm text-dim font-medium">
+              <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go shrink-0" /> Free to use</span>
+              <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go shrink-0" /> No app download</span>
+              <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go shrink-0" /> Works on any phone</span>
             </div>
           </div>
 
@@ -98,8 +111,8 @@ export default function LandingPage() {
                 </motion.div>
 
                 <div className="pt-4 flex justify-center">
-                   <div className="w-full h-24 bg-white/5 rounded-lg flex items-center justify-center font-mono text-dim text-sm border border-white/5">
-                     [████ QR ████]
+                   <div className="bg-white p-3 rounded-lg inline-block">
+                     <QRCodeSVG value="https://flowpass.app/pass/demo" size={80} level="L" />
                    </div>
                 </div>
               </div>
@@ -112,7 +125,7 @@ export default function LandingPage() {
                 Live Simulator
               </div>
               <button
-                onClick={() => setPassState(s => s === 'WAIT' ? 'GO' : 'WAIT')}
+                onClick={() => setPassState(s => s === 'WAIT' ? 'ACTIVE' : 'WAIT')}
                 className="w-full py-2.5 px-5 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 text-sm font-bold transition-colors flex items-center gap-2 whitespace-nowrap"
               >
                 <Radio className={`w-4 h-4 ${passState === 'WAIT' ? 'text-go' : 'text-wait'}`} />
@@ -124,9 +137,9 @@ export default function LandingPage() {
       </section>
 
       {/* PROBLEM STATS */}
-      <section className="py-24 bg-background border-y border-white/5 relative">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
+      <section className="py-12 md:py-24 bg-background border-y border-white/5 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-8 md:mb-16">
             <div className="text-stop font-mono text-sm tracking-widest uppercase mb-4">Why This Exists</div>
             <h2 className="text-4xl md:text-5xl font-heading font-bold mb-6">Every large event ends the same way.</h2>
             <p className="text-xl text-dim max-w-2xl mx-auto leading-relaxed">
@@ -152,24 +165,26 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="mt-20 text-center">
+          <div className="mt-12 md:mt-20 text-center mb-8 md:mb-16">
             <p className="text-3xl font-heading font-bold">
               Poor coordination kills people.<br/>
               <span className="text-go mt-2 block">FlowPass fixes coordination.</span>
             </p>
           </div>
+
+          <ChaosVsCalm />
         </div>
       </section>
 
       {/* HOW IT WORKS */}
-      <section id="how-it-works" className="py-32 bg-card relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-20">
+      <section id="how-it-works" className="py-12 md:py-32 bg-card relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10 md:mb-20">
             <div className="text-go font-mono text-sm tracking-widest uppercase mb-4">How It Works</div>
             <h2 className="text-4xl md:text-5xl font-heading font-bold mb-6">From chaos to calm — in 60 seconds of setup.</h2>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-12 mb-24">
+          <div className="grid md:grid-cols-3 gap-4 md:gap-8 relative z-10">
             <div className="relative">
               <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center font-heading font-bold text-xl mb-6 border border-white/10">1</div>
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Radio className="w-5 h-5 text-go"/> Organizer Sets Up</h3>
@@ -188,104 +203,26 @@ export default function LandingPage() {
           </div>
 
           {/* Scroll-Triggered Timeline Visual */}
-          <div className="max-w-3xl mx-auto bg-background p-8 rounded-2xl border border-white/5">
-            <div className="space-y-6 font-mono text-sm">
-              <div className="flex items-center gap-6">
-                <div className="w-20 text-dim">10:00 PM</div>
-                <div className="w-16 font-bold">Zone A</div>
-                <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                  <motion.div className="h-full bg-go" initial={{ width: "0%" }} whileInView={{ width: "100%" }} transition={{ duration: 1, delay: 0.2 }} viewport={{ once: true }} />
-                </div>
-                <div className="w-6 text-go">🟢</div>
-              </div>
-              <div className="flex items-center gap-6">
-                <div className="w-20 text-dim">10:12 PM</div>
-                <div className="w-16 font-bold">Zone B</div>
-                <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                  <motion.div className="h-full bg-wait" initial={{ width: "0%" }} whileInView={{ width: "100%" }} transition={{ duration: 1, delay: 0.8 }} viewport={{ once: true }} />
-                </div>
-                <div className="w-6 text-wait">🟡</div>
-              </div>
-              <div className="flex items-center gap-6">
-                <div className="w-20 text-dim">10:24 PM</div>
-                <div className="w-16 font-bold">Zone C</div>
-                <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                  <motion.div className="h-full bg-stop" initial={{ width: "0%" }} whileInView={{ width: "100%" }} transition={{ duration: 1, delay: 1.4 }} viewport={{ once: true }} />
-                </div>
-                <div className="w-6 text-stop">🔴</div>
-              </div>
-            </div>
-            <div className="mt-8 text-center text-dim font-medium">
-              Full dispersal by 10:36 PM
-            </div>
-          </div>
+          <ScrollTimeline />
         </div>
       </section>
 
       {/* THREE ROLES */}
-      <section id="roles" className="py-32 bg-background">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-20">
+      <section id="roles" className="py-12 md:py-32 bg-background">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10 md:mb-20">
             <div className="text-wait font-mono text-sm tracking-widest uppercase mb-4">Three Roles. One System.</div>
             <h2 className="text-4xl md:text-5xl font-heading font-bold mb-6">Built for everyone at the venue.</h2>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Organizer Card */}
-            <div className="bg-card border border-white/5 rounded-2xl p-8 flex flex-col">
-              <div className="inline-block px-3 py-1 bg-white/5 text-xs font-mono text-dim rounded mb-6 w-max">FOR ORGANIZERS</div>
-              <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><Radio className="w-6 h-6 text-go"/> You're in control.</h3>
-              <p className="text-dim mb-8 leading-relaxed flex-grow">Create the event, set the zones, launch exit mode when the match ends. Watch live as 33,000 people disperse zone by zone. Reassign gates instantly if one gets blocked. Broadcast announcements to every attendee in one tap.</p>
-              <ul className="space-y-3 mb-8 text-sm font-medium">
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go"/> Live control dashboard</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go"/> Smart gate reassignment</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go"/> Real-time crowd tracking</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go"/> One-tap announcements</li>
-              </ul>
-              <Link to="/create" className="text-go font-bold flex items-center gap-2 hover:gap-3 transition-all">
-                Create an Event <ArrowRight className="w-4 h-4"/>
-              </Link>
-            </div>
-
-            {/* Attendee Card */}
-            <div className="bg-card border border-white/5 rounded-2xl p-8 flex flex-col">
-              <div className="inline-block px-3 py-1 bg-white/5 text-xs font-mono text-dim rounded mb-6 w-max">FOR ATTENDEES</div>
-              <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><Ticket className="w-6 h-6 text-go"/> You always know what to do.</h3>
-              <p className="text-dim mb-8 leading-relaxed flex-grow">Scan the QR code at entry. Get your personal FlowPass. When the event ends, your pass tells you exactly when to leave, which gate to use, and how crowded each exit is right now. No confusion. No rushing. No danger.</p>
-              <ul className="space-y-3 mb-8 text-sm font-medium">
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go"/> Personal zone + gate assignment</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go"/> Live countdown to your exit</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go"/> Real-time gate crowd status</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go"/> Live announcements from organizer</li>
-              </ul>
-              <Link to="/register/demo" className="text-go font-bold flex items-center gap-2 hover:gap-3 transition-all">
-                See a Sample Pass <ArrowRight className="w-4 h-4"/>
-              </Link>
-            </div>
-
-            {/* Gate Staff Card */}
-            <div className="bg-card border border-white/5 rounded-2xl p-8 flex flex-col">
-              <div className="inline-block px-3 py-1 bg-white/5 text-xs font-mono text-dim rounded mb-6 w-max">FOR GATE STAFF</div>
-              <h3 className="text-2xl font-bold mb-4 flex items-center gap-2"><ShieldCheck className="w-6 h-6 text-go"/> Simple. Fast. Mobile.</h3>
-              <p className="text-dim mb-8 leading-relaxed flex-grow">Open your gate's link on any phone. See which zones are active for your gate right now. Validate passes in one tap. Report congestion instantly — the organizer sees it the second you tap. No training needed.</p>
-              <ul className="space-y-3 mb-8 text-sm font-medium">
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go"/> See active zones per gate</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go"/> One-tap pass validation</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go"/> Instant congestion reporting</li>
-                <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-go"/> Works on any basic smartphone</li>
-              </ul>
-              <Link to="/gate/demo" className="text-go font-bold flex items-center gap-2 hover:gap-3 transition-all">
-                See Gate View <ArrowRight className="w-4 h-4"/>
-              </Link>
-            </div>
-          </div>
+          <RolesSwitcher />
         </div>
       </section>
 
       {/* SMART LOGIC HIGHLIGHT */}
-      <section className="py-32 bg-card border-t border-white/5">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-20">
+      <section className="py-12 md:py-32 bg-card border-t border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-10 md:mb-20">
             <div className="text-go font-mono text-sm tracking-widest uppercase mb-4">Intelligent By Design</div>
             <h2 className="text-4xl md:text-5xl font-heading font-bold mb-6">
               FlowPass doesn't just show timers.<br/>
@@ -296,50 +233,31 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 mb-20">
-            <div className="bg-background border border-white/5 p-8 rounded-2xl flex gap-6">
-              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                <span className="text-2xl">🧮</span>
-              </div>
-              <div>
-                <h4 className="text-xl font-bold mb-3">Auto Exit Gap Calculation</h4>
-                <p className="text-dim leading-relaxed">Calculates the safest time gap between zones based on your exact crowd size and number of gates. You don't guess. The algorithm does.</p>
-              </div>
-            </div>
-            
-            <div className="bg-background border border-white/5 p-8 rounded-2xl flex gap-6">
-              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                <span className="text-2xl">🔀</span>
-              </div>
-              <div>
-                <h4 className="text-xl font-bold mb-3">Smart Gate Reassignment</h4>
-                <p className="text-dim leading-relaxed">If Gate 3 gets blocked mid-event, FlowPass instantly reassigns that zone to the next available gate and updates every affected pass.</p>
-              </div>
-            </div>
-
-            <div className="bg-background border border-white/5 p-8 rounded-2xl flex gap-6">
-              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                <span className="text-2xl">⚡</span>
-              </div>
-              <div>
-                <h4 className="text-xl font-bold mb-3">Real-Time Pass Updates</h4>
-                <p className="text-dim leading-relaxed">Every attendee's FlowPass updates live — no refresh needed. Status flips from WAIT to GO the moment their zone unlocks.</p>
-              </div>
-            </div>
-
-            <div className="bg-background border border-white/5 p-8 rounded-2xl flex gap-6">
-              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                <span className="text-2xl">📢</span>
-              </div>
-              <div>
-                <h4 className="text-xl font-bold mb-3">Instant Broadcast</h4>
-                <p className="text-dim leading-relaxed">Organizer types one announcement. Every attendee with an open pass sees it in under 2 seconds. "Metro Line 1 running — Platform 3"</p>
-              </div>
-            </div>
+          <div className="grid md:grid-cols-2 gap-4 md:gap-6 mb-12 md:mb-20">
+            <GlassCard 
+              icon={<span className="text-2xl">🧮</span>}
+              title="Auto Exit Gap Calculation"
+              description="Calculates the safest time gap between zones based on your exact crowd size and number of gates. You don't guess. The algorithm does."
+            />
+            <GlassCard 
+              icon={<span className="text-2xl">🔀</span>}
+              title="Smart Gate Reassignment"
+              description="If Gate 3 gets blocked mid-event, FlowPass instantly reassigns that zone to the next available gate and updates every affected pass."
+            />
+            <GlassCard 
+              icon={<span className="text-2xl">⚡</span>}
+              title="Real-Time Pass Updates"
+              description="Every attendee's FlowPass updates live — no refresh needed. Status flips from WAIT to GO the moment their zone unlocks."
+            />
+            <GlassCard 
+              icon={<span className="text-2xl">📢</span>}
+              title="Instant Broadcast"
+              description="Organizer types one announcement. Every attendee with an open pass sees it in under 2 seconds. 'Metro Line 1 running — Platform 3'"
+            />
           </div>
 
-          <div className="text-center">
-            <Link to="/create" className="inline-flex items-center justify-center px-10 py-5 bg-white text-background font-bold rounded-lg hover:bg-white/90 transition-colors gap-3 text-lg">
+          <div className="text-center w-full px-6">
+            <Link to="/create" className="inline-flex w-full sm:w-auto items-center justify-center px-10 py-5 bg-white text-background font-bold rounded-lg hover:bg-white/90 transition-colors gap-3 text-lg">
               <Radio className="w-6 h-6" /> See It In Action — Create Event
             </Link>
           </div>

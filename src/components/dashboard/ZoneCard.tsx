@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { PauseCircle, PlayCircle, Clock, Edit2, Unlock } from 'lucide-react';
+import { PauseCircle, PlayCircle, Clock, Edit2, Unlock, CheckCircle2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface ZoneCardProps {
@@ -11,6 +11,10 @@ interface ZoneCardProps {
 export default function ZoneCard({ zone, index }: ZoneCardProps) {
   const [isHolding, setIsHolding] = useState(zone.status === 'HOLD');
   const [showUnlockConfirm, setShowUnlockConfirm] = useState(false);
+  const [showTimeEdit, setShowTimeEdit] = useState(false);
+  const [newTime, setNewTime] = useState(
+    new Date(zone.exit_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+  );
 
   const handleHoldToggle = async () => {
     const newStatus = isHolding ? 'ACTIVE' : 'HOLD';
@@ -30,6 +34,17 @@ export default function ZoneCard({ zone, index }: ZoneCardProps) {
       .update({ status: 'ACTIVE', exit_time: new Date().toISOString() })
       .eq('id', zone.id);
     setShowUnlockConfirm(false);
+  };
+
+  const handleTimeUpdate = async () => {
+    const [hours, minutes] = newTime.split(':').map(Number);
+    const exitDate = new Date(zone.exit_time);
+    exitDate.setHours(hours, minutes, 0, 0);
+    await supabase
+      .from('zones')
+      .update({ exit_time: exitDate.toISOString() })
+      .eq('id', zone.id);
+    setShowTimeEdit(false);
   };
 
   // Determine visual state based on status
@@ -91,6 +106,7 @@ export default function ZoneCard({ zone, index }: ZoneCardProps) {
         ) : zone.status !== 'CLEARED' ? (
           <button 
             onClick={() => setShowUnlockConfirm(true)}
+            aria-label={`Unlock ${zone.name} early`}
             className="flex-1 py-2 bg-go/10 text-go hover:bg-go/20 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
           >
             <Unlock className="w-4 h-4" /> Unlock Early
@@ -102,7 +118,11 @@ export default function ZoneCard({ zone, index }: ZoneCardProps) {
         )}
 
         {zone.status !== 'CLEARED' && (
-          <button className="px-4 py-2 bg-white/5 text-white hover:bg-white/10 rounded-lg transition-colors">
+          <button 
+            onClick={() => setShowTimeEdit(true)}
+            aria-label={`Edit exit time for ${zone.name}`}
+            className="px-4 py-2 bg-white/5 text-white hover:bg-white/10 rounded-lg transition-colors"
+          >
             <Edit2 className="w-4 h-4" />
           </button>
         )}
@@ -116,15 +136,47 @@ export default function ZoneCard({ zone, index }: ZoneCardProps) {
           <div className="flex gap-2 w-full">
             <button 
               onClick={() => setShowUnlockConfirm(false)}
+              aria-label="Cancel unlock"
               className="flex-1 py-2 bg-white/10 rounded-lg font-medium hover:bg-white/20"
             >
               Cancel
             </button>
             <button 
               onClick={handleUnlockEarly}
+              aria-label="Confirm unlock now"
               className="flex-1 py-2 bg-go text-background rounded-lg font-bold hover:bg-go/90"
             >
               Unlock Now
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Time Edit Modal */}
+      {showTimeEdit && (
+        <div className="absolute inset-0 bg-surface/95 backdrop-blur-sm rounded-2xl p-5 flex flex-col justify-center items-center text-center z-10">
+          <h4 className="font-bold mb-2">Edit Exit Time for {zone.name}</h4>
+          <input 
+            type="time" 
+            value={newTime}
+            onChange={(e) => setNewTime(e.target.value)}
+            aria-label="New exit time"
+            className="w-full bg-background border border-white/20 rounded-lg px-4 py-3 text-center font-timer text-2xl tracking-wider mb-4 focus:outline-none focus:border-go"
+          />
+          <div className="flex gap-2 w-full">
+            <button 
+              onClick={() => setShowTimeEdit(false)}
+              aria-label="Cancel time edit"
+              className="flex-1 py-2 bg-white/10 rounded-lg font-medium hover:bg-white/20"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handleTimeUpdate}
+              aria-label="Save new exit time"
+              className="flex-1 py-2 bg-go text-background rounded-lg font-bold hover:bg-go/90"
+            >
+              Save Time
             </button>
           </div>
         </div>

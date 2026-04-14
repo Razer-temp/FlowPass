@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { generateSchedule, calculateGateLoads, ZoneSchedule } from '../lib/zoneAlgorithm';
 import { supabase } from '../lib/supabase';
+import { QRCodeCanvas } from 'qrcode.react';
+import { sanitizeText } from '../lib/sanitize';
 
 interface EventDraft {
   eventName: string;
@@ -18,6 +20,8 @@ interface EventDraft {
   numZones: number;
   gates: string[];
   zoneGateMap: Record<string, string[]>;
+  manualGap: number | null;
+  pin: string;
 }
 
 const defaultDraft: EventDraft = {
@@ -28,7 +32,9 @@ const defaultDraft: EventDraft = {
   totalCrowd: '',
   numZones: 4,
   gates: ['Gate 1', 'Gate 2', 'Gate 3'],
-  zoneGateMap: { 'A': ['Gate 1', 'Gate 2'], 'B': ['Gate 2', 'Gate 3'], 'C': ['Gate 1'], 'D': ['Gate 3'] }
+  zoneGateMap: { 'A': ['Gate 1', 'Gate 2'], 'B': ['Gate 2', 'Gate 3'], 'C': ['Gate 1'], 'D': ['Gate 3'] },
+  manualGap: null,
+  pin: ''
 };
 
 export default function CreateEvent() {
@@ -50,6 +56,18 @@ export default function CreateEvent() {
     navigator.clipboard.writeText(link);
     setCopiedLink(type);
     setTimeout(() => setCopiedLink(null), 2000);
+  };
+
+  const handleDownloadQR = () => {
+    const canvas = document.getElementById("attendee-qr-code") as HTMLCanvasElement;
+    if (!canvas) return;
+    const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+    const downloadLink = document.createElement("a");
+    downloadLink.href = pngUrl;
+    downloadLink.download = `flowpass-${draft.eventName.replace(/\s+/g, '-').toLowerCase()}-qr.png`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
   };
 
   useEffect(() => {
@@ -84,12 +102,14 @@ export default function CreateEvent() {
     updateDraft({ gates: newGates, zoneGateMap: newMap });
   };
 
-  const isStep1Valid = draft.eventName && draft.venueName && draft.date && draft.endTime && Number(draft.totalCrowd) > 0;
+  const isStep1Valid = draft.eventName && draft.venueName && draft.date && draft.endTime && Number(draft.totalCrowd) > 0 && draft.pin && draft.pin.length >= 4;
   
   const schedule = generateSchedule(draft.endTime, draft.date, Number(draft.totalCrowd) || 0, draft.numZones, draft.zoneGateMap);
   const gateLoads = calculateGateLoads(Number(draft.totalCrowd) || 0, draft.numZones, draft.gates, draft.zoneGateMap);
 
   const [isLaunching, setIsLaunching] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
+  const [step1Errors, setStep1Errors] = useState<Record<string, string>>({});
 
   const handleLaunch = async () => {
     setIsLaunching(true);
@@ -98,12 +118,13 @@ export default function CreateEvent() {
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .insert({
-          name: draft.eventName,
-          venue: draft.venueName,
+          name: sanitizeText(draft.eventName),
+          venue: sanitizeText(draft.venueName),
           date: draft.date,
           end_time: draft.endTime,
           crowd: Number(draft.totalCrowd),
-          gates: draft.gates
+          gates: draft.gates,
+          pin: draft.pin
         })
         .select()
         .single();
@@ -132,7 +153,8 @@ export default function CreateEvent() {
       setStep(4);
     } catch (error) {
       console.error('Error launching event:', error);
-      alert('Failed to launch event. Please check console for details.');
+      alert('Failed to launch event. Check your connection and try again.');
+      setLaunchError('Failed to launch event. Please check your connection and try again.');
     } finally {
       setIsLaunching(false);
     }
@@ -141,22 +163,22 @@ export default function CreateEvent() {
   return (
     <div className="min-h-screen bg-background text-white font-body pb-24">
       {/* PROGRESS BAR */}
-      <div className="sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-white/10 pt-6 pb-4 px-6">
+      <div className="sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-white/10 pt-4 md:pt-6 pb-3 md:pb-4 px-4 md:px-6">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               {step > 1 ? <CheckCircle2 className="w-5 h-5 text-go" /> : <Circle className="w-5 h-5 text-go fill-go/20" />}
-              <span className={`text-sm font-bold ${step >= 1 ? 'text-white' : 'text-dim'}`}>Event Details</span>
+              <span className={`text-xs md:text-sm font-bold ${step >= 1 ? 'text-white' : 'text-dim'}`}>Details</span>
             </div>
-            <div className={`flex-1 h-px mx-4 ${step > 1 ? 'bg-go' : 'bg-white/10'}`} />
+            <div className={`flex-1 h-px mx-2 md:mx-4 ${step > 1 ? 'bg-go' : 'bg-white/10'}`} />
             <div className="flex items-center gap-2">
               {step > 2 ? <CheckCircle2 className="w-5 h-5 text-go" /> : (step === 2 ? <Circle className="w-5 h-5 text-go fill-go/20" /> : <Circle className="w-5 h-5 text-dim" />)}
-              <span className={`text-sm font-bold ${step >= 2 ? 'text-white' : 'text-dim'}`}>Zones & Gates</span>
+              <span className={`text-xs md:text-sm font-bold ${step >= 2 ? 'text-white' : 'text-dim'}`}>Zones</span>
             </div>
-            <div className={`flex-1 h-px mx-4 ${step > 2 ? 'bg-go' : 'bg-white/10'}`} />
+            <div className={`flex-1 h-px mx-2 md:mx-4 ${step > 2 ? 'bg-go' : 'bg-white/10'}`} />
             <div className="flex items-center gap-2">
               {step > 3 ? <CheckCircle2 className="w-5 h-5 text-go" /> : (step === 3 ? <Circle className="w-5 h-5 text-go fill-go/20" /> : <Circle className="w-5 h-5 text-dim" />)}
-              <span className={`text-sm font-bold ${step >= 3 ? 'text-white' : 'text-dim'}`}>Launch</span>
+              <span className={`text-xs md:text-sm font-bold ${step >= 3 ? 'text-white' : 'text-dim'}`}>Launch</span>
             </div>
           </div>
           <div className="text-center text-xs text-dim font-mono uppercase tracking-widest mt-4">
@@ -165,12 +187,12 @@ export default function CreateEvent() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 pt-12">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pt-6 md:pt-12">
         {/* STEP 1: EVENT DETAILS */}
         {step === 1 && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-2xl mx-auto">
-            <div className="text-center mb-12">
-              <h1 className="text-4xl font-heading font-bold mb-4">Create Your Event</h1>
+            <div className="text-center mb-8 md:mb-12">
+              <h1 className="text-3xl md:text-4xl font-heading font-bold mb-3 md:mb-4">Create Your Event</h1>
               <p className="text-dim text-lg">Tell us about your event and we'll build the safest exit plan for it.</p>
             </div>
 
@@ -250,6 +272,21 @@ export default function CreateEvent() {
                 </div>
                 <p className="text-xs text-dim">Include all stands, VIP, and staff. We use this to calculate safe exit timings.</p>
               </div>
+
+              <div className="bg-card border border-white/5 p-6 rounded-2xl">
+                <label className="block text-sm font-bold mb-2 flex items-center justify-between">
+                  Security PIN (4-10 chars) *
+                  {draft.pin && draft.pin.length >= 4 && <CheckCircle2 className="w-4 h-4 text-go" />}
+                </label>
+                <input 
+                  type="text" 
+                  value={draft.pin}
+                  onChange={e => updateDraft({ pin: e.target.value.toUpperCase().replace(/\s/g, '').slice(0, 10) })}
+                  placeholder="e.g. 1234 or FLW-1"
+                  className="w-full bg-background border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-dim/50 focus:outline-none focus:border-go transition-colors font-mono uppercase"
+                />
+                <p className="text-xs text-dim mt-2">Attendees must enter this PIN to access the event registration.</p>
+              </div>
             </div>
 
             <div className="mt-12 flex justify-end">
@@ -266,7 +303,7 @@ export default function CreateEvent() {
 
         {/* STEP 2: ZONES & GATES */}
         {step === 2 && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid lg:grid-cols-2 gap-12">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="grid lg:grid-cols-2 gap-8 lg:gap-12">
             <div>
               <div className="mb-8">
                 <h1 className="text-3xl font-heading font-bold mb-2">Set Up Zones & Gates</h1>
@@ -397,7 +434,7 @@ export default function CreateEvent() {
                   {schedule.map((zone, i) => (
                     <div key={zone.id} className="flex items-start gap-4 p-4 rounded-xl bg-card border border-white/5">
                       <div className="mt-1">
-                        {zone.status === 'GO' ? <div className="w-3 h-3 rounded-full bg-go shadow-[0_0_10px_rgba(0,255,135,0.5)]" /> : 
+                        {zone.status === 'ACTIVE' ? <div className="w-3 h-3 rounded-full bg-go shadow-[0_0_10px_rgba(0,255,135,0.5)]" /> : 
                          i === 1 ? <div className="w-3 h-3 rounded-full bg-wait" /> : 
                          <div className="w-3 h-3 rounded-full bg-stop" />}
                       </div>
@@ -468,6 +505,10 @@ export default function CreateEvent() {
                   <div className="text-dim text-xs font-mono mb-1">TOTAL CROWD</div>
                   <div className="font-bold text-lg">{Number(draft.totalCrowd).toLocaleString()} people</div>
                 </div>
+                <div>
+                  <div className="text-dim text-xs font-mono mb-1 text-go">SECURITY PIN</div>
+                  <div className="font-bold text-lg font-mono text-go">{draft.pin}</div>
+                </div>
               </div>
 
               <div className="p-6 border-t border-white/10 bg-white/[0.02]">
@@ -478,7 +519,7 @@ export default function CreateEvent() {
                   {schedule.map(zone => (
                     <div key={zone.id} className="flex items-center justify-between bg-background p-3 rounded-lg border border-white/5">
                       <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${zone.status === 'GO' ? 'bg-go' : 'bg-stop'}`} />
+                        <div className={`w-2 h-2 rounded-full ${zone.status === 'ACTIVE' ? 'bg-go' : 'bg-stop'}`} />
                         <span className="font-bold">{zone.name}</span>
                       </div>
                       <div className="flex items-center gap-6">
@@ -573,7 +614,7 @@ export default function CreateEvent() {
                     <h3 className="font-bold text-lg mb-1 uppercase tracking-wider font-mono text-sm text-dim">Organizer Dashboard</h3>
                     <p className="text-sm text-dim mb-3">Your live control panel to monitor crowds and manage gates.</p>
                     <div className="flex gap-2">
-                      <div className="flex-1 bg-background border border-white/10 rounded px-3 py-2 text-sm font-mono text-dim truncate">
+                      <div className="flex-1 bg-background border border-white/10 rounded px-3 py-2 text-sm font-mono text-dim break-all">
                         {displayOrigin}/organizer/{eventId}
                       </div>
                       <button 
@@ -599,7 +640,7 @@ export default function CreateEvent() {
                     <h3 className="font-bold text-lg mb-1 uppercase tracking-wider font-mono text-sm text-dim">Big Screen Display</h3>
                     <p className="text-sm text-dim mb-3">Open this on the projector or LED boards inside the venue.</p>
                     <div className="flex gap-2">
-                      <div className="flex-1 bg-background border border-white/10 rounded px-3 py-2 text-sm font-mono text-dim truncate">
+                      <div className="flex-1 bg-background border border-white/10 rounded px-3 py-2 text-sm font-mono text-dim break-all">
                         {displayOrigin}/screen/{eventId}
                       </div>
                       <button 
@@ -623,9 +664,9 @@ export default function CreateEvent() {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-bold text-lg mb-1 uppercase tracking-wider font-mono text-sm text-dim">Attendee Registration</h3>
-                    <p className="text-sm text-dim mb-3">Share via WhatsApp or display at entry gates for attendees to get passes.</p>
+                    <p className="text-sm text-dim mb-3">Share via WhatsApp or display at entry gates for attendees to get passes. <br /><span className="text-go font-bold">Important: They will need PIN ({draft.pin}) to access.</span></p>
                     <div className="flex gap-2 mb-6">
-                      <div className="flex-1 bg-background border border-white/10 rounded px-3 py-2 text-sm font-mono text-dim truncate">
+                      <div className="flex-1 bg-background border border-white/10 rounded px-3 py-2 text-sm font-mono text-dim break-all">
                         {displayOrigin}/register/{eventId}
                       </div>
                       <button 
@@ -641,15 +682,18 @@ export default function CreateEvent() {
 
                     <div className="bg-background border border-white/10 rounded-xl p-6 flex items-center gap-6">
                       <div className="w-32 h-32 bg-white rounded-lg p-2 flex items-center justify-center">
-                        {/* Placeholder for actual QR code */}
-                        <div className="w-full h-full border-4 border-black border-dashed flex items-center justify-center text-black font-bold text-xs text-center">
-                          QR CODE
-                        </div>
+                        <QRCodeCanvas 
+                          id="attendee-qr-code"
+                          value={`${baseOrigin}/register/${eventId}`}
+                          size={112}
+                          level="H"
+                          includeMargin={false}
+                        />
                       </div>
                       <div>
                         <h4 className="font-bold mb-2">Print & Display</h4>
                         <p className="text-sm text-dim mb-4">Stick this at every entry gate so attendees can scan it as they walk in.</p>
-                        <button className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded text-sm font-bold transition-colors flex items-center gap-2">
+                        <button onClick={handleDownloadQR} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded text-sm font-bold transition-colors flex items-center gap-2">
                           <Download className="w-4 h-4"/> Download PNG
                         </button>
                       </div>

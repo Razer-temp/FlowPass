@@ -2,7 +2,7 @@ export interface ZoneSchedule {
   id: string;
   name: string;
   exitTime: string;
-  status: 'GO' | 'WAIT';
+  status: 'ACTIVE' | 'WAIT';
   gates: string[];
   estimatedPeople: number;
 }
@@ -50,7 +50,7 @@ export function generateSchedule(
       id: zone,
       name: `Zone ${zone}`,
       exitTime: currentTime.toISOString(),
-      status: index === 0 ? 'GO' : 'WAIT',
+      status: index === 0 ? 'ACTIVE' : 'WAIT',
       gates: zoneGateMap[zone] || [],
       estimatedPeople: peoplePerZone
     });

@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { CheckCircle2, XCircle, AlertTriangle, Clock, Camera, WifiOff, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Clock, Camera, WifiOff, ArrowLeft, PauseCircle } from 'lucide-react';
 
 export default function GateStaffView() {
   const { eventId, gateId } = useParams();
@@ -220,12 +220,22 @@ export default function GateStaffView() {
     setShiftStats(s => ({ ...s, reports: s.reports + 1, lastReport: `${new Date().toLocaleTimeString()} — ${status}` }));
 
     if (!isOffline) {
-      // Broadcast to Organizer Dashboard via Activity Log
-      await supabase.from('activity_log').insert({
-        event_id: eventId,
-        action: `Gate ${decodedGateId} reported status: ${status}`,
-        type: 'SYSTEM'
-      });
+      try {
+        // Update events.gate_status JSONB field
+        const { data: eventData } = await supabase.from('events').select('gate_status').eq('id', eventId).single();
+        const newGateStatus = { ...(eventData?.gate_status || {}) };
+        newGateStatus[decodedGateId] = status;
+        await supabase.from('events').update({ gate_status: newGateStatus }).eq('id', eventId);
+
+        // Also log to Activity Log for organizer dashboard
+        await supabase.from('activity_log').insert({
+          event_id: eventId,
+          action: `Gate ${decodedGateId} reported status: ${status}`,
+          type: 'SYSTEM'
+        });
+      } catch (e) {
+        console.error('Failed to report gate status:', e);
+      }
     }
   };
 
@@ -251,10 +261,10 @@ export default function GateStaffView() {
       )}
 
       {/* ① GATE HEADER */}
-      <header className={`p-6 border-b-4 ${isPaused ? 'bg-amber-500 border-amber-600 text-background' : 'bg-surface border-white/10'}`}>
-        <div className="font-timer tracking-widest text-xl mb-4 opacity-80">🎫 FLOWPASS</div>
-        <h1 className="text-4xl font-heading font-bold uppercase mb-1">{decodedGateId}</h1>
-        <p className="text-sm opacity-80 mb-4">{event.name} · {new Date(event.date).toLocaleDateString()}</p>
+      <header className={`p-4 md:p-6 border-b-4 ${isPaused ? 'bg-amber-500 border-amber-600 text-background' : 'bg-surface border-white/10'}`}>
+        <div className="font-timer tracking-widest text-lg md:text-xl mb-2 md:mb-4 opacity-80">🎫 FLOWPASS</div>
+        <h1 className="text-3xl md:text-4xl font-heading font-bold uppercase mb-1">{decodedGateId}</h1>
+        <p className="text-sm opacity-80 mb-3 md:mb-4">{event.name} · {new Date(event.date).toLocaleDateString()}</p>
         
         {isPaused ? (
           <div className="font-bold text-lg flex items-start gap-2">
@@ -478,10 +488,10 @@ export default function GateStaffView() {
         </section>
 
         {/* ③ PEOPLE THROUGH COUNTER */}
-        <section className="bg-surface border border-white/10 rounded-2xl p-6 text-center">
-          <p className="text-sm font-bold text-dim tracking-widest mb-2">THROUGH THIS GATE</p>
-          <div className="text-6xl font-timer tracking-widest text-go mb-1">{passesThroughGate.toLocaleString()}</div>
-          <p className="text-sm text-dim">people passed</p>
+        <section className="bg-surface border border-white/10 rounded-xl md:rounded-2xl p-4 md:p-6 text-center">
+          <p className="text-xs md:text-sm font-bold text-dim tracking-widest mb-1 md:mb-2">THROUGH THIS GATE</p>
+          <div className="text-5xl md:text-6xl font-timer tracking-widest text-go mb-1">{passesThroughGate.toLocaleString()}</div>
+          <p className="text-xs md:text-sm text-dim">people passed</p>
         </section>
 
         {/* ④ VALIDATE A PASS */}
@@ -489,14 +499,16 @@ export default function GateStaffView() {
           <h2 className="text-xl font-bold mb-1">Validate a Pass</h2>
           <p className="text-sm text-dim mb-4">Enter short code or seat number</p>
           
-          <form onSubmit={handleValidate} className="bg-surface border border-white/10 rounded-2xl p-6">
+          <form onSubmit={handleValidate} className="bg-surface border border-white/10 rounded-xl md:rounded-2xl p-4 md:p-6">
             <input
               ref={inputRef}
               type="text"
               value={inputCode}
               onChange={(e) => setInputCode(e.target.value)}
               placeholder="e.g. A1B2C3 or Stand C"
-              className="w-full bg-background border border-white/20 rounded-xl px-4 py-5 text-2xl text-center font-mono uppercase focus:outline-none focus:border-go transition-colors mb-4"
+              aria-label="Enter pass short code or seat number"
+              aria-required="true"
+              className="w-full bg-background border border-white/20 rounded-xl px-4 py-4 md:py-5 text-xl md:text-2xl text-center font-mono uppercase focus:outline-none focus:border-go transition-colors mb-4"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="characters"
@@ -505,6 +517,7 @@ export default function GateStaffView() {
             <button 
               type="submit"
               disabled={!inputCode.trim()}
+              aria-label="Validate the pass code"
               className="w-full py-5 bg-go text-background font-black text-xl rounded-xl disabled:opacity-50 active:scale-95 transition-transform flex items-center justify-center gap-2"
             >
               <CheckCircle2 className="w-6 h-6" /> Check Pass

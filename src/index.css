@@ -34,8 +34,15 @@
 }
 
 body {
-  background-color: var(--color-background);
+  background-color: #0A0A0F !important;
   color: #ffffff;
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }

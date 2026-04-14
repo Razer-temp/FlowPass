@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { assignZoneFromSeat } from '../lib/zoneAlgorithm';
-import { CheckCircle2, Ticket, MapPin, ShieldCheck } from 'lucide-react';
+import { sanitizeName, sanitizeSeat } from '../lib/sanitize';
+import { CheckCircle2, Ticket, MapPin, ShieldCheck, AlertCircle } from 'lucide-react';
 import PassCard from '../components/PassCard';
 
 export default function AttendeeRegistration() {
@@ -21,6 +22,9 @@ export default function AttendeeRegistration() {
   const [detectedZone, setDetectedZone] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedPass, setGeneratedPass] = useState<any>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!eventId) return;
@@ -62,21 +66,38 @@ export default function AttendeeRegistration() {
     }
   }, [seat, zones]);
 
+  const validateFields = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    if (!name.trim()) newErrors.name = 'Name is required';
+    else if (name.trim().length < 2) newErrors.name = 'Name must be at least 2 characters';
+    if (!seat.trim()) newErrors.seat = 'Seat number is required';
+    if (phone && phone.replace(/\D/g, '').length !== 10 && phone.replace(/\D/g, '').length > 0) {
+      newErrors.phone = 'Enter a valid 10-digit number';
+    }
+    if (!detectedZone) newErrors.seat = 'Could not detect zone from seat — try adding Stand/Block';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !seat || !detectedZone) return;
+    setSubmitError(null);
+    if (!validateFields()) return;
 
     setIsSubmitting(true);
 
     try {
+      const sanitizedName = sanitizeName(name);
+      const sanitizedSeat = sanitizeSeat(seat);
+
       const { data: passData, error } = await supabase
         .from('passes')
         .insert({
           event_id: eventId,
           zone_id: detectedZone.id,
           gate_id: detectedZone.gates[0],
-          attendee_name: name.trim(),
-          seat_number: seat.trim(),
+          attendee_name: sanitizedName,
+          seat_number: sanitizedSeat,
           status: 'LOCKED'
         })
         .select()
@@ -97,7 +118,7 @@ export default function AttendeeRegistration() {
 
     } catch (error) {
       console.error("Error generating pass:", error);
-      alert("Failed to generate pass. Please try again.");
+      setSubmitError('Failed to generate pass. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -112,15 +133,15 @@ export default function AttendeeRegistration() {
   }
 
   // If event is complete, hide form
-  const isComplete = event.status === 'COMPLETE' || (zones.length > 0 && zones.every(z => z.status === 'CLEARED'));
+  const isComplete = event.status === 'COMPLETED' || (zones.length > 0 && zones.every(z => z.status === 'CLEARED'));
 
   return (
     <div className="min-h-screen bg-background text-white p-4 md:p-8 pb-24">
       <div className="max-w-md mx-auto">
         
         {/* ① EVENT HEADER */}
-        <div className="bg-surface border border-white/10 rounded-2xl p-6 mb-8 text-center">
-          <div className="font-timer tracking-widest text-xl text-go mb-4">🎫 FLOWPASS</div>
+        <div className="bg-surface border border-white/10 rounded-xl md:rounded-2xl p-4 md:p-6 mb-6 md:mb-8 text-center">
+          <div className="font-timer tracking-widest text-lg md:text-xl text-go mb-3 md:mb-4">🎫 FLOWPASS</div>
           <h1 className="font-heading font-bold text-2xl mb-1">{event.name}</h1>
           <p className="text-dim text-sm mb-6">{event.venue} · {new Date(event.date).toLocaleDateString()}</p>
           
@@ -143,9 +164,9 @@ export default function AttendeeRegistration() {
           <PassCard pass={generatedPass} event={event} zone={zones.find(z => z.id === generatedPass.zone_id) || detectedZone} />
         ) : (
           /* ② SMART FORM */
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold mb-2">Get Your FlowPass</h2>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="text-center mb-6">
+              <h2 className="text-xl md:text-2xl font-bold mb-2">Get Your FlowPass</h2>
               <p className="text-dim text-sm">Enter your details below — your zone and gate are assigned automatically from your seat number.</p>
             </div>
 
@@ -161,14 +182,25 @@ export default function AttendeeRegistration() {
                   minLength={2}
                   maxLength={50}
                   autoFocus
+                  ref={nameInputRef}
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => { setName(e.target.value); setErrors(prev => ({...prev, name: ''})); }}
                   placeholder="e.g. Rahul Sharma"
-                  className="w-full bg-surface border border-white/10 rounded-xl px-4 py-4 focus:outline-none focus:border-go transition-colors capitalize"
+                  aria-label="Your full name"
+                  aria-required="true"
+                  aria-invalid={!!errors.name}
+                  aria-describedby={errors.name ? 'name-error' : undefined}
+                  className={`w-full bg-surface border rounded-xl px-4 py-4 focus:outline-none focus:border-go transition-colors capitalize ${errors.name ? 'border-stop' : 'border-white/10'}`}
                 />
-                {name.length >= 2 && <CheckCircle2 className="absolute right-4 top-4 w-5 h-5 text-go" />}
+                {name.length >= 2 && !errors.name && <CheckCircle2 className="absolute right-4 top-4 w-5 h-5 text-go" />}
               </div>
-              <p className="text-xs text-dim">This appears on your FlowPass</p>
+              {errors.name ? (
+                <p id="name-error" className="text-xs text-stop flex items-center gap-1 mt-1" role="alert">
+                  <AlertCircle className="w-3 h-3" /> {errors.name}
+                </p>
+              ) : (
+                <p className="text-xs text-dim">This appears on your FlowPass</p>
+              )}
             </div>
 
             {/* FIELD 2 — SEAT NUMBER */}
@@ -182,17 +214,27 @@ export default function AttendeeRegistration() {
                   required 
                   minLength={3}
                   value={seat}
-                  onChange={(e) => setSeat(e.target.value)}
+                  onChange={(e) => { setSeat(e.target.value); setErrors(prev => ({...prev, seat: ''})); }}
                   placeholder="e.g. Stand C, Row 12, Seat 4"
-                  className="w-full bg-surface border border-white/10 rounded-xl px-4 py-4 focus:outline-none focus:border-go transition-colors pl-12"
+                  aria-label="Your seat number"
+                  aria-required="true"
+                  aria-invalid={!!errors.seat}
+                  aria-describedby={errors.seat ? 'seat-error' : 'seat-hint'}
+                  className={`w-full bg-surface border rounded-xl px-4 py-4 focus:outline-none focus:border-go transition-colors pl-12 ${errors.seat ? 'border-stop' : 'border-white/10'}`}
                 />
                 <MapPin className="absolute left-4 top-4 w-5 h-5 text-dim" />
                 {detectedZone && <CheckCircle2 className="absolute right-4 top-4 w-5 h-5 text-go" />}
               </div>
-              <div className="flex items-start gap-2 text-xs text-dim mt-2">
-                <span className="text-xl">💡</span>
-                <p>Your zone and exit gate are auto-assigned from this. Can't find your seat? Check your ticket or ask gate staff.</p>
-              </div>
+              {errors.seat ? (
+                <p id="seat-error" className="text-xs text-stop flex items-center gap-1 mt-1" role="alert">
+                  <AlertCircle className="w-3 h-3" /> {errors.seat}
+                </p>
+              ) : (
+                <div id="seat-hint" className="flex items-start gap-2 text-xs text-dim mt-2">
+                  <span className="text-xl">💡</span>
+                  <p>Your zone and exit gate are auto-assigned from this. {seat.length >= 3 && !detectedZone ? "Can't detect zone yet — try adding Stand/Block" : ''}</p>
+                </div>
+              )}
             </div>
 
             {/* SMART ZONE PREVIEW */}
@@ -227,27 +269,44 @@ export default function AttendeeRegistration() {
                 <input 
                   type="tel" 
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => { setPhone(e.target.value); setErrors(prev => ({...prev, phone: ''})); }}
                   placeholder="+91 XXXXXXXXXX"
-                  className="w-full bg-surface border border-white/10 rounded-xl px-4 py-4 focus:outline-none focus:border-go transition-colors"
+                  aria-label="Mobile number (optional)"
+                  aria-invalid={!!errors.phone}
+                  aria-describedby={errors.phone ? 'phone-error' : 'phone-hint'}
+                  className={`w-full bg-surface border rounded-xl px-4 py-4 focus:outline-none focus:border-go transition-colors ${errors.phone ? 'border-stop' : 'border-white/10'}`}
                 />
                 {phone.replace(/\D/g, '').length === 10 && <CheckCircle2 className="absolute right-4 top-4 w-5 h-5 text-go" />}
               </div>
-              <div className="flex items-center gap-1 text-xs text-dim">
-                <ShieldCheck className="w-3 h-3" /> Only used to receive organizer announcements — never shared
-              </div>
+              {errors.phone ? (
+                <p id="phone-error" className="text-xs text-stop flex items-center gap-1 mt-1" role="alert">
+                  <AlertCircle className="w-3 h-3" /> {errors.phone}
+                </p>
+              ) : (
+                <div id="phone-hint" className="flex items-center gap-1 text-xs text-dim">
+                  <ShieldCheck className="w-3 h-3" /> Only used to receive organizer announcements — never shared
+                </div>
+              )}
             </div>
+
+            {/* Submit Error */}
+            {submitError && (
+              <div className="bg-stop/10 border border-stop/30 rounded-xl p-4 text-stop text-sm flex items-center gap-2" role="alert">
+                <AlertCircle className="w-4 h-4 shrink-0" /> {submitError}
+              </div>
+            )}
 
             {/* ③ THE MAIN CTA BUTTON */}
             <button 
               type="submit"
               disabled={!name || !seat || !detectedZone || isSubmitting}
+              aria-label="Generate your FlowPass exit pass"
               className="w-full py-4 bg-go text-background font-black text-xl rounded-xl hover:bg-go/90 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:transform-none disabled:hover:bg-go flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,135,0.2)] mt-8"
             >
               {isSubmitting ? (
                 <>
                   <div className="w-5 h-5 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                  Generating your pass...
+                  Generating... {detectedZone ? `Assigning ${detectedZone.name} · ${detectedZone.gates[0]}` : ''}
                 </>
               ) : (
                 <>

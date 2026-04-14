@@ -62,6 +62,14 @@ export default function GatePanel({ gates, zones, eventId }: GatePanelProps) {
             newGates.push(activeAlert.newGate);
           }
           await supabase.from('zones').update({ gates: newGates }).eq('id', zone.id);
+
+          // Also update passes assigned to the blocked gate → reassign to new gate
+          if (activeAlert.newGate !== 'Any Available Gate') {
+            await supabase.from('passes')
+              .update({ gate_id: activeAlert.newGate })
+              .eq('zone_id', zone.id)
+              .eq('gate_id', activeAlert.blockedGate);
+          }
         }
       }
 

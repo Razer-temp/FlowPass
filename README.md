@@ -1,40 +1,170 @@
+# 🎫 FlowPass — Smart Staggered Exit System
 
-# FlowPass: The Smart Event Exit System
+> A real-time, zero-install crowd management system that replaces dangerous stampede-prone crowd exits with intelligent, wave-based dispersal.
 
-**Vertical:** Smart Event & Crowd Safety Management
+---
 
-FlowPass is a real-time event exit coordination system designed to prevent post-event stampedes at large venues (stadiums, concerts, etc.) by implementing a staggered, wave-based dispersal strategy.
+## 🎯 Chosen Vertical
 
-## 🚀 The Approach
-- **Real-Time Coordination:** Uses Supabase Realtime and Postgres Changes to sync gate statuses and zone clearances instantly across organizers, staff, and attendees.
-- **Premium User Experience:** Built with React 19 and custom motion logic to provide a high-end, responsive feel that works on any mobile browser without an app download.
-- **Decision Support:** Provides organizers with a live dashboard to manage gate congestion and reassign flow dynamically based on real-world conditions.
+**Event Safety & Crowd Management** — Specifically, the problem of safely exiting 10,000–50,000+ people from stadiums, arenas, and large venues after events end.
 
-## 🧠 How It Works
-1. **Organizer Setup:** Create an event, define zones, and assign gates.
-2. **Attendee Registration:** Attendees scan a QR code and get a personal digital pass tied to their seat/zone.
-3. **Staggered Exit:** When the event ends, the organizer triggers the "Exit Sequence." Attendees receive live notifications/timers on their passes indicating when it is safe to leave through their assigned gate.
-4. **Gate Monitoring:** Staff use a dedicated view to validate passes and report congestion, which updates the organizer's dashboard in real-time.
+## 💡 Approach & Logic
 
-## 📝 Assumptions & Logistics
-- **Network Dependency:** Relies on mobile connectivity for real-time updates.
-- **User Hardware:** Assumes attendees have access to a smartphone with a web browser.
-- **Zero-Install:** Designed as a web app to eliminate friction; no App Store/Play Store download required.
+FlowPass divides a venue into **zones** and schedules **staggered exit waves** with calculated gaps between each zone. A smart algorithm considers:
 
-## Run Locally
+- **Total crowd size** — More people = larger gaps
+- **Number of exit gates** — More gates = faster clearing
+- **Gate load balancing** — Distributes zones across gates to prevent bottlenecks
+- **Dynamic adjustments** — Organizers can pause, unlock, or reassign zones in real-time
 
-**Prerequisites:** Node.js
+### The Smart Algorithm
 
-1. **Clone and Install:**
-   ```bash
-   npm install
-   ```
-2. **Environment Variables:**
-   Set the following variables in a `.env` file:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-3. **Launch:**
-   ```bash
-   npm run dev
-   ```
+```
+Gap = ceil(peoplePerZone / (gatesPerZone × 500 people/min))
+Clamped to: 8 min ≤ gap ≤ 20 min
+```
 
+Each zone unlocks sequentially. Zone A opens first (immediate GO), Zone B opens after one gap, Zone C after two gaps, etc.
+
+## 🔁 How It Works
+
+```
+ORGANISER creates event → System generates 3 URLs:
+  → /organizer/:eventId     (dashboard)
+  → /screen/:eventId        (big screen)
+  → /register/:eventId      (attendees)
+
+ATTENDEES scan QR / open link → register → get /pass/:passId
+
+GATE STAFF open /gate/:eventId/:gateId on their phones
+
+ORGANISER hits "Activate Exit Mode" on dashboard
+
+Zone A unlocks → Zone A passes flip 🟢 GO NOW
+Zone B unlocks after gap → Zone B passes flip 🟢
+...until all zones clear → event complete ✅
+```
+
+## 🛠 Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19 + Vite + TypeScript |
+| Styling | Tailwind CSS 4 |
+| Database | Supabase (Postgres + Realtime) |
+| Animation | Framer Motion |
+| QR Codes | qrcode.react |
+| Deployment | Google Cloud Run (Docker + nginx) |
+| Testing | Vitest (24 unit tests) |
+
+## 🏗 Architecture
+
+```
+src/
+├── components/
+│   ├── dashboard/        # Organizer dashboard components
+│   │   ├── StatsRow.tsx        # Live stats (total, exited, remaining, chaos score)
+│   │   ├── ZoneCard.tsx        # Per-zone controls (hold/resume/unlock/edit time)
+│   │   ├── GatePanel.tsx       # Gate status + smart reassignment
+│   │   ├── ActivityLog.tsx     # Timeline log with CSV export
+│   │   └── AnnouncementComposer.tsx  # Broadcast messaging
+│   ├── pass/
+│   │   └── LivePassCard.tsx    # Real-time updating attendee pass
+│   ├── PassCard.tsx            # Static registration pass
+│   ├── Navbar.tsx
+│   └── Footer.tsx
+├── lib/
+│   ├── supabase.ts             # Supabase client
+│   ├── sanitize.ts             # Input sanitization utility
+│   ├── zoneAlgorithm.ts        # Core staggered exit algorithm
+│   └── seedData.ts             # Test data seeder
+├── pages/
+│   ├── LandingPage.tsx         # Marketing landing
+│   ├── CreateEvent.tsx         # 3-step event creation wizard
+│   ├── OrganizerDashboard.tsx  # Real-time organizer controls
+│   ├── BigScreen.tsx           # Venue display (fullscreen)
+│   ├── AttendeeRegistration.tsx # Attendee self-registration
+│   ├── PassView.tsx            # Live pass with countdown
+│   └── GateStaffView.tsx       # Gate validation interface
+└── App.tsx                     # Router
+```
+
+## 🔒 Security
+
+- **Row Level Security (RLS)** enabled on all 5 Supabase tables
+- **UUID-based IDs** prevent sequential enumeration attacks
+- **Input sanitization** strips HTML/script injection before database writes
+- **Anon key only** — no service key exposed to client
+- **Environment variables** for all secrets (no hardcoded keys)
+
+## ♿ Accessibility
+
+- `aria-label` on all interactive buttons and form fields
+- `aria-required` and `aria-invalid` on required inputs
+- `aria-describedby` linking error messages to their inputs
+- `aria-live` regions for dynamic status updates
+- `role="alert"` for error messages
+- Touch targets ≥ 44×44px for mobile interfaces (Gate Staff)
+
+## 🧪 Testing
+
+Run all 24 unit tests:
+
+```bash
+npm test
+```
+
+Test coverage:
+- **zoneAlgorithm.test.js** (10 tests) — Gap calculation, schedule generation, seat-to-zone assignment
+- **passStatus.test.js** (6 tests) — Pass state logic, countdown triggers, QR greyout
+- **gateAssignment.test.js** (8 tests) — Gate validation, smart reassignment, wrong gate detection
+
+## 🚀 Running Locally
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/rehmanmusharaf/FlowPass.git
+cd FlowPass
+
+# 2. Install dependencies
+npm install
+
+# 3. Set up environment variables
+cp .env.example .env
+# Edit .env with your Supabase credentials
+
+# 4. Start development server
+npm run dev
+
+# 5. Run tests
+npm test
+
+# 6. Build for production
+npm run build
+```
+
+## ☁️ Deployment (Google Cloud Run)
+
+The project includes a `Dockerfile` and `nginx.conf` for containerized deployment:
+
+```bash
+# Build and deploy via Cloud Build
+gcloud builds submit --config cloudbuild.yaml
+```
+
+The container serves the built React app via nginx with:
+- SPA routing (all routes → index.html)
+- Gzip compression
+- Static asset caching
+
+## 📝 Assumptions Made
+
+1. **No user authentication** — FlowPass is designed as a "zero install, zero account" system. Attendees should be able to register and view their pass with just a URL, no login required.
+2. **Single organizer per event** — The current design assumes one organizer manages the dashboard. Multi-user organizer auth can be added via Supabase Auth.
+3. **Gate staff trust model** — Gate staff access is URL-based. In production, a PIN/passcode layer would be added.
+4. **Crowd estimates** — The gap algorithm uses crowd estimates, not real-time headcounts. Physical gate counters could enhance this.
+5. **Network availability** — While GateStaffView has offline detection, full offline-first sync is not yet implemented (queued operations logged to console only).
+
+## 📄 License
+
+Open Source — Built for physical event safety.

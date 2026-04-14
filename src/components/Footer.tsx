@@ -22,7 +22,7 @@ export default function Footer() {
               <li><a href="#roles" className="hover:text-white transition-colors">For Organizers</a></li>
               <li><a href="#roles" className="hover:text-white transition-colors">For Attendees</a></li>
               <li>
-                <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-2 mt-2">
+                <a href="https://github.com/rehmanmusharaf/FlowPass" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-2 mt-2" aria-label="View FlowPass source code on GitHub">
                   <Github className="w-4 h-4"/> View on GitHub
                 </a>
               </li>
@@ -32,7 +32,7 @@ export default function Footer() {
             <h4 className="font-bold mb-4 font-heading">Built With</h4>
             <ul className="space-y-3 text-dim text-sm">
               <li className="flex items-center gap-2">⚡ React + Vite</li>
-              <li className="flex items-center gap-2">🗄️ Firebase</li>
+              <li className="flex items-center gap-2">🗄️ Supabase (Realtime + Postgres)</li>
               <li className="flex items-center gap-2">☁️ Google Cloud Run</li>
               <li className="flex items-center gap-2">🔒 Zero personal data stored</li>
             </ul>

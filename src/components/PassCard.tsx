@@ -1,5 +1,7 @@
 import { motion } from 'motion/react';
-import { Copy, Share2, Download } from 'lucide-react';
+import { Copy, Share2 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { useState } from 'react';
 
 interface PassCardProps {
   pass: any;
@@ -9,10 +11,12 @@ interface PassCardProps {
 
 export default function PassCard({ pass, event, zone }: PassCardProps) {
   const passUrl = `${window.location.origin}/pass/${pass.id}`;
+  const [copied, setCopied] = useState(false);
   
   const handleCopy = () => {
     navigator.clipboard.writeText(passUrl);
-    alert('Link copied to clipboard!');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleWhatsApp = () => {
@@ -80,10 +84,10 @@ export default function PassCard({ pass, event, zone }: PassCardProps) {
             {statusText}
           </div>
 
-          {/* QR Code Placeholder */}
-          <div className="w-full aspect-[3/1] bg-white rounded-xl flex items-center justify-center mb-6">
-            <div className="text-background font-mono font-bold text-xl tracking-[0.5em]">
-              ||||||||||||||||||||
+          {/* QR Code */}
+          <div className="flex justify-center mb-6">
+            <div className="bg-white p-4 rounded-xl">
+              <QRCodeSVG value={passUrl} size={160} level="H" includeMargin={false} />
             </div>
           </div>
 
@@ -101,10 +105,10 @@ export default function PassCard({ pass, event, zone }: PassCardProps) {
 
       {/* Action Buttons */}
       <div className="mt-6 space-y-3">
-        <button onClick={handleCopy} className="w-full py-4 bg-surface border border-white/10 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-white/5 transition-colors">
-          <Copy className="w-4 h-4" /> Copy Pass Link
+        <button onClick={handleCopy} aria-label="Copy pass link to clipboard" className="w-full py-4 bg-surface border border-white/10 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-white/5 transition-colors">
+          <Copy className="w-4 h-4" /> {copied ? '✅ Copied!' : 'Copy Pass Link'}
         </button>
-        <button onClick={handleWhatsApp} className="w-full py-4 bg-[#25D366] text-background font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-[#25D366]/90 transition-colors">
+        <button onClick={handleWhatsApp} aria-label="Share pass via WhatsApp" className="w-full py-4 bg-[#25D366] text-background font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-[#25D366]/90 transition-colors">
           <Share2 className="w-4 h-4" /> Share via WhatsApp
         </button>
       </div>
