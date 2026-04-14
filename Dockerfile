@@ -10,6 +10,14 @@ RUN npm install
 # Copy all project files
 COPY . .
 
+# Build arguments for Supabase
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+
+# Set them as environment variables for the build process
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+
 # Build the project
 RUN npm run build
 
