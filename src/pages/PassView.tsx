@@ -96,11 +96,12 @@ export default function PassView() {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events' }, payload => {
         setEvent((current: any) => {
           if (current && current.id === payload.new.id) {
-            if (payload.new.gates) {
-              const statuses = payload.new.gate_status || {};
-              setGates(payload.new.gates.map((g: string) => ({ name: g, status: statuses[g] || 'CLEAR' })));
+            const updatedEvent = { ...current, ...payload.new };
+            if (updatedEvent.gates) {
+              const statuses = updatedEvent.gate_status || {};
+              setGates(updatedEvent.gates.map((g: string) => ({ name: g, status: statuses[g] || 'CLEAR' })));
             }
-            return payload.new;
+            return updatedEvent;
           }
           return current;
         });
@@ -109,11 +110,12 @@ export default function PassView() {
     const passSub = supabase.channel(`pass-${passId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'passes', filter: `id=eq.${passId}` }, payload => {
         setPass((current: any) => {
-          if (current && current.gate_id !== payload.new.gate_id) {
+          const updatedPass = { ...current, ...payload.new };
+          if (current && current.gate_id !== updatedPass.gate_id) {
             setHasReassigned(true);
             if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Amber pulse equivalent
           }
-          return payload.new;
+          return updatedPass;
         });
       }).subscribe();
 
@@ -121,7 +123,7 @@ export default function PassView() {
     const zoneSub = supabase.channel(`pass-zone-${passId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'zones' }, payload => {
         setZone((current: any) => {
-          if (current && current.id === payload.new.id) return payload.new;
+          if (current && current.id === payload.new.id) return { ...current, ...payload.new };
           return current;
         });
       }).subscribe();

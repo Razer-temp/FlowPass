@@ -43,7 +43,7 @@ export default function LivePassCard({ pass, event, zone, onGoNow, hasReassigned
   }, [pass.status, zone.exit_time, zone.status, onGoNow]);
 
   const isUsed = pass.status === 'USED';
-  const isPaused = pass.status === 'PAUSED' || zone.status === 'HOLD';
+  const isPaused = pass.status === 'PAUSED' || zone.status === 'HOLD' || event?.status === 'PAUSED';
   const isGoNow = pass.status === 'ACTIVE';
   const isLocked = pass.status === 'LOCKED';
 

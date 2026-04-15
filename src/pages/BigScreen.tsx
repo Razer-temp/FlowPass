@@ -66,12 +66,14 @@ export default function BigScreen() {
 
     const eventSub = supabase.channel(`screen-event-${eventId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `id=eq.${eventId}` }, payload => {
-        const newData = payload.new as any;
-        setEvent(newData);
-        if (newData.gates) {
-          const statuses = newData.gate_status || {};
-          setGates(newData.gates.map((g: string) => ({ name: g, status: statuses[g] || 'CLEAR' })));
-        }
+        setEvent((current: any) => {
+          const newData = { ...current, ...payload.new };
+          if (newData.gates) {
+            const statuses = newData.gate_status || {};
+            setGates(newData.gates.map((g: string) => ({ name: g, status: statuses[g] || 'CLEAR' })));
+          }
+          return newData;
+        });
       }).subscribe();
 
     const zonesSub = supabase.channel(`screen-zones-${eventId}`)
@@ -79,7 +81,9 @@ export default function BigScreen() {
         setZones(current => {
           const updated = [...current];
           const index = updated.findIndex(z => z.id === payload.new.id);
-          if (index !== -1) updated[index] = payload.new;
+          if (index !== -1) {
+            updated[index] = { ...current[index], ...payload.new };
+          }
           return updated;
         });
       }).subscribe();
@@ -91,7 +95,7 @@ export default function BigScreen() {
           if (payload.eventType === 'UPDATE') {
             const updated = [...current];
             const index = updated.findIndex(p => p.id === payload.new.id);
-            if (index !== -1) updated[index] = payload.new;
+            if (index !== -1) updated[index] = { ...current[index], ...payload.new };
             return updated;
           }
           return current;

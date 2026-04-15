@@ -99,7 +99,7 @@ export default function GateStaffView() {
     // Real-time Subscriptions
     const eventSub = supabase.channel(`gate-event-${eventId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events', filter: `id=eq.${eventId}` }, payload => {
-        setEvent(payload.new);
+        setEvent((current: any) => ({ ...current, ...payload.new }));
       }).subscribe();
 
     const zonesSub = supabase.channel(`gate-zones-${eventId}`)
@@ -107,8 +107,11 @@ export default function GateStaffView() {
         setZones(current => {
           const updated = [...current];
           const index = updated.findIndex(z => z.id === payload.new.id);
-          if (index !== -1 && payload.new.gates.includes(decodedGateId)) {
-            updated[index] = payload.new;
+          if (index !== -1) {
+            const mergedZone = { ...current[index], ...payload.new };
+            if (mergedZone.gates && mergedZone.gates.includes(decodedGateId)) {
+              updated[index] = mergedZone;
+            }
           }
           return updated;
         });
@@ -120,6 +123,8 @@ export default function GateStaffView() {
           const updated = { ...current };
           if (payload.eventType === 'DELETE') {
             delete updated[payload.old.id];
+          } else if (payload.eventType === 'UPDATE') {
+            updated[payload.new.id] = { ...updated[payload.new.id], ...payload.new };
           } else {
             updated[payload.new.id] = payload.new;
           }
