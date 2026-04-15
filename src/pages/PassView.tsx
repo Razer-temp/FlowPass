@@ -149,7 +149,6 @@ export default function PassView() {
   const handleGoNow = async () => {
     if (pass.status !== 'ACTIVE') {
       await supabase.from('passes').update({ status: 'ACTIVE' }).eq('id', pass.id);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 

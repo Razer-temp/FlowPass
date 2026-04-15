@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion } from 'motion/react';
 import { CheckCircle2, AlertTriangle, PauseCircle } from 'lucide-react';
@@ -15,6 +15,9 @@ interface LivePassCardProps {
 export default function LivePassCard({ pass, event, zone, onGoNow, hasReassigned, onDismissReassign }: LivePassCardProps) {
   const [now, setNow] = useState(Date.now());
   const [pulse, setPulse] = useState(false);
+  const [hasTriggeredGo, setHasTriggeredGo] = useState(false);
+  const [showScanEffect, setShowScanEffect] = useState(false);
+  const prevStatus = useRef(pass.status);
   const passUrl = `${window.location.origin}/pass/${pass.id}`;
 
   useEffect(() => {
@@ -31,7 +34,8 @@ export default function LivePassCard({ pass, event, zone, onGoNow, hasReassigned
         }
         
         // Trigger GO NOW
-        if (diff <= 0) {
+        if (diff <= 0 && !hasTriggeredGo) {
+          setHasTriggeredGo(true);
           if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
           setPulse(true);
           setTimeout(() => setPulse(false), 1000);
@@ -40,7 +44,18 @@ export default function LivePassCard({ pass, event, zone, onGoNow, hasReassigned
       }
     }, 1000);
     return () => clearInterval(timer);
-  }, [pass.status, zone.exit_time, zone.status, onGoNow]);
+  }, [pass.status, zone.exit_time, zone.status, onGoNow, hasTriggeredGo]);
+
+  useEffect(() => {
+    if (prevStatus.current !== pass.status) {
+      if (pass.status === 'USED' && prevStatus.current !== 'USED') {
+        setShowScanEffect(true);
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        setTimeout(() => setShowScanEffect(false), 2000);
+      }
+      prevStatus.current = pass.status;
+    }
+  }, [pass.status]);
 
   const isUsed = pass.status === 'USED';
   const isPaused = pass.status === 'PAUSED' || zone.status === 'HOLD' || event?.status === 'PAUSED';
@@ -82,6 +97,31 @@ export default function LivePassCard({ pass, event, zone, onGoNow, hasReassigned
       {/* Full screen pulse effect */}
       {pulse && <div className="fixed inset-0 bg-go/30 z-50 pointer-events-none animate-ping" />}
       
+      {/* Instant Scan Success Animation */}
+      {showScanEffect && (
+        <div className="fixed inset-0 z-[60] pointer-events-none flex items-center justify-center bg-go/20">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 1, repeat: 1 }}
+            className="w-full h-full absolute top-0 left-0 border-[16px] border-go/50 box-border"
+          />
+          <motion.div 
+            initial={{ y: "-100vh" }}
+            animate={{ y: "100vh" }}
+            transition={{ duration: 1.5, ease: "linear" }}
+            className="w-full h-2 bg-white shadow-[0_0_30px_#00FF87,0_0_60px_#00FF87] absolute"
+          />
+          <motion.div 
+            initial={{ scale: 0 }}
+            animate={{ scale: [0, 1.2, 1] }}
+            className="bg-go text-background font-black text-4xl px-8 py-6 rounded-3xl shadow-[0_0_50px_#00FF87] flex items-center gap-4 z-10"
+          >
+            <CheckCircle2 className="w-12 h-12" /> SCANNED
+          </motion.div>
+        </div>
+      )}
+
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -177,7 +217,7 @@ export default function LivePassCard({ pass, event, zone, onGoNow, hasReassigned
           )}
 
           {/* QR Code Shield */}
-          <div className="relative flex justify-center mb-8">
+          <div className="relative flex justify-center mb-6">
             <div className="absolute left-0 right-0 top-1/2 h-px bg-white/10 -z-10 border-dashed border-t" />
             <div className={`bg-white p-4 rounded-2xl ${isUsed ? 'opacity-30 grayscale' : ''}`}>
               <QRCodeSVG 
@@ -194,6 +234,11 @@ export default function LivePassCard({ pass, event, zone, onGoNow, hasReassigned
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="text-center mb-6">
+            <span className="text-xs text-dim block mb-1">MANUAL CODE</span>
+            <span className="font-mono text-2xl font-bold tracking-widest">{pass.id.slice(-6).toUpperCase()}</span>
           </div>
 
           <div className="text-center text-sm text-dim">

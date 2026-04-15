@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { CheckCircle2, XCircle, AlertTriangle, Clock, Camera, WifiOff, ArrowLeft, PauseCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Clock, Camera, WifiOff, ArrowLeft, PauseCircle, X } from 'lucide-react';
+import { Scanner } from '@yudiel/react-qr-scanner';
 
 export default function GateStaffView() {
   const { eventId, gateId } = useParams();
@@ -31,6 +32,7 @@ export default function GateStaffView() {
   // Gate Status
   const [currentGateStatus, setCurrentGateStatus] = useState('CLEAR');
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   // Zero-drift clock for countdowns
   const [now, setNow] = useState(Date.now());
@@ -145,11 +147,12 @@ export default function GateStaffView() {
     setTimeout(() => setFlashColor(null), 500);
   };
 
-  const handleValidate = (e?: React.FormEvent) => {
+  const handleValidate = (e?: React.FormEvent, directCode?: string) => {
     if (e) e.preventDefault();
-    if (!inputCode.trim()) return;
+    const codeToUse = directCode || inputCode;
+    if (!codeToUse.trim()) return;
 
-    const code = inputCode.trim().toLowerCase();
+    const code = codeToUse.trim().toLowerCase();
     
     // Find pass by short code (last 6 chars of UUID) or seat number
     const pass = Object.values(passesCache).find(p => 
@@ -261,7 +264,47 @@ export default function GateStaffView() {
     <div className="min-h-screen bg-background text-white pb-24 relative">
       {/* Flash Overlay */}
       {flashColor && (
-        <div className={`fixed inset-0 z-50 pointer-events-none ${flashColor} opacity-50 animate-pulse`} />
+        <div className={`fixed inset-0 z-[60] pointer-events-none ${flashColor} opacity-50 animate-pulse`} />
+      )}
+
+      {/* QR Scanner Overlay */}
+      {showScanner && (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          <div className="p-6 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0 z-10">
+            <h3 className="font-bold text-xl">Scan Pass</h3>
+            <button onClick={() => setShowScanner(false)} className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition-colors">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          <div className="flex-1 bg-black flex items-center justify-center">
+            <div className="w-full max-w-md aspect-square overflow-hidden relative">
+              <Scanner
+                onScan={(result) => {
+                  if (result && result.length > 0) {
+                    const url = result[0].rawValue;
+                    if (url.includes('/pass/')) {
+                      const id = url.split('/pass/')[1];
+                      if (id) {
+                        const shortCode = id.slice(-6).toUpperCase();
+                        setInputCode(shortCode);
+                        setShowScanner(false);
+                        handleValidate(undefined, shortCode);
+                      }
+                    }
+                  }
+                }}
+                onError={(err) => console.warn(err)}
+                components={{
+                  audio: false,
+                  finder: true,
+                }}
+              />
+            </div>
+          </div>
+          <div className="p-8 bg-black text-center text-dim text-sm pb-12">
+            Point camera at the attendee's FlowPass QR code.
+          </div>
+        </div>
       )}
 
       {/* Offline Banner */}
@@ -542,8 +585,8 @@ export default function GateStaffView() {
 
             <button 
               type="button"
-              onClick={() => alert("Camera scanning requires HTTPS and permissions. For this preview, please use the manual entry field above.")}
-              className="w-full py-4 bg-surface border border-white/20 font-bold text-lg rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2"
+              onClick={() => setShowScanner(true)}
+              className="w-full py-4 bg-surface border border-white/20 font-bold text-lg rounded-xl active:scale-95 transition-transform flex items-center justify-center gap-2 hover:bg-white/5"
             >
               <Camera className="w-5 h-5" /> Scan QR Code
             </button>
