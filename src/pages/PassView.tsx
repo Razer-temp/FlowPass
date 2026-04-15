@@ -69,9 +69,10 @@ export default function PassView() {
         const { data: eventData } = await supabase.from('events').select('*').eq('id', passData.event_id).single();
         if (eventData) {
           setEvent(eventData);
-          // Mock gates from event data if gates table doesn't exist
+          // Sync gates statuses from event data
           if (eventData.gates) {
-            setGates(eventData.gates.map((g: string) => ({ name: g, status: 'CLEAR' })));
+            const statuses = eventData.gate_status || {};
+            setGates(eventData.gates.map((g: string) => ({ name: g, status: statuses[g] || 'CLEAR' })));
           }
         }
 
@@ -91,6 +92,20 @@ export default function PassView() {
     fetchInitialData();
 
     // Real-time subscriptions
+    const eventSub = supabase.channel(`pass-event-${passId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events' }, payload => {
+        setEvent((current: any) => {
+          if (current && current.id === payload.new.id) {
+            if (payload.new.gates) {
+              const statuses = payload.new.gate_status || {};
+              setGates(payload.new.gates.map((g: string) => ({ name: g, status: statuses[g] || 'CLEAR' })));
+            }
+            return payload.new;
+          }
+          return current;
+        });
+      }).subscribe();
+
     const passSub = supabase.channel(`pass-${passId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'passes', filter: `id=eq.${passId}` }, payload => {
         setPass((current: any) => {
@@ -117,6 +132,7 @@ export default function PassView() {
       }).subscribe();
 
     return () => {
+      supabase.removeChannel(eventSub);
       supabase.removeChannel(passSub);
       supabase.removeChannel(zoneSub);
       supabase.removeChannel(annSub);

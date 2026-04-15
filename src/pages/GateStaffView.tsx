@@ -97,6 +97,11 @@ export default function GateStaffView() {
     fetchInitialData();
 
     // Real-time Subscriptions
+    const eventSub = supabase.channel(`gate-event-${eventId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events', filter: `id=eq.${eventId}` }, payload => {
+        setEvent(payload.new);
+      }).subscribe();
+
     const zonesSub = supabase.channel(`gate-zones-${eventId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'zones', filter: `event_id=eq.${eventId}` }, payload => {
         setZones(current => {
@@ -123,6 +128,7 @@ export default function GateStaffView() {
       }).subscribe();
 
     return () => {
+      supabase.removeChannel(eventSub);
       supabase.removeChannel(zonesSub);
       supabase.removeChannel(passesSub);
     };
