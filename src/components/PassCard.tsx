@@ -1,7 +1,8 @@
 import { motion } from 'motion/react';
-import { Copy, Share2 } from 'lucide-react';
+import { Copy, Share2, ExternalLink, Bookmark, CheckCircle2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface PassCardProps {
   pass: any;
@@ -10,6 +11,7 @@ interface PassCardProps {
 }
 
 export default function PassCard({ pass, event, zone }: PassCardProps) {
+  const navigate = useNavigate();
   const passUrl = `${window.location.origin}/pass/${pass.id}`;
   const [copied, setCopied] = useState(false);
   
@@ -17,6 +19,12 @@ export default function PassCard({ pass, event, zone }: PassCardProps) {
     navigator.clipboard.writeText(passUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleOpenPass = () => {
+    // Auto-copy for convenience
+    navigator.clipboard.writeText(passUrl);
+    navigate(`/pass/${pass.id}`);
   };
 
   const handleWhatsApp = () => {
@@ -42,6 +50,13 @@ export default function PassCard({ pass, event, zone }: PassCardProps) {
       transition={{ type: 'spring', damping: 20, stiffness: 100 }}
       className="w-full max-w-md mx-auto"
     >
+      <div className="text-center mb-4">
+        <h3 className="text-go font-bold flex items-center justify-center gap-2">
+          <CheckCircle2 className="w-5 h-5" /> Registration Successful
+        </h3>
+        <p className="text-dim text-sm">Your pass is ready. Please save it for exit.</p>
+      </div>
+
       {/* The Pass Card */}
       <div className="bg-surface rounded-3xl overflow-hidden border border-white/10 shadow-2xl relative">
         {/* Top Header */}
@@ -92,8 +107,8 @@ export default function PassCard({ pass, event, zone }: PassCardProps) {
           </div>
 
           <div className="text-center text-sm text-dim">
-            <p className="font-bold text-white mb-1">{zone.gates.join(' & ')}</p>
-            <p>Follow signs after exit</p>
+            <p className="font-bold text-white mb-1 uppercase tracking-widest">{pass.id.slice(-6)}</p>
+            <p>Show this to gate staff</p>
           </div>
         </div>
 
@@ -104,13 +119,37 @@ export default function PassCard({ pass, event, zone }: PassCardProps) {
       </div>
 
       {/* Action Buttons */}
-      <div className="mt-6 space-y-3">
-        <button onClick={handleCopy} aria-label="Copy pass link to clipboard" className="w-full py-4 bg-surface border border-white/10 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-white/5 transition-colors">
-          <Copy className="w-4 h-4" /> {copied ? '✅ Copied!' : 'Copy Pass Link'}
+      <div className="mt-8 space-y-4">
+        {/* Primary Action */}
+        <button 
+          onClick={handleOpenPass} 
+          className="w-full py-5 bg-go text-background font-black text-xl rounded-2xl flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_30px_rgba(0,255,135,0.3)]"
+        >
+          <ExternalLink className="w-6 h-6" /> Open Live Pass
         </button>
-        <button onClick={handleWhatsApp} aria-label="Share pass via WhatsApp" className="w-full py-4 bg-[#25D366] text-background font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-[#25D366]/90 transition-colors">
-          <Share2 className="w-4 h-4" /> Share via WhatsApp
-        </button>
+
+        {/* Secondary Actions Row */}
+        <div className="flex gap-3">
+          <button 
+            onClick={handleCopy} 
+            className="flex-1 py-4 bg-surface border border-white/10 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/5 transition-colors"
+          >
+            <Copy className="w-4 h-4 text-go" /> {copied ? 'Copied ✓' : 'Copy Link'}
+          </button>
+          
+          <button 
+            onClick={handleWhatsApp} 
+            className="flex-1 py-4 bg-surface border border-white/10 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/5 transition-colors"
+          >
+            <Share2 className="w-4 h-4 text-[#25D366]" /> WhatsApp
+          </button>
+        </div>
+
+        {/* Added to Home Screen Tip */}
+        <div className="flex items-center justify-center gap-2 text-xs text-dim mt-4">
+          <Bookmark className="w-3 h-3 text-go" />
+          <span>Tip: Add this page to your home screen for quick access</span>
+        </div>
       </div>
     </motion.div>
   );
