@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { 
   CheckCircle2, Circle, AlertTriangle, Clock, Users, MapPin, 
   Calendar, Ticket, Plus, X, ChevronRight, ChevronLeft, Copy, ExternalLink, Download,
-  Radio, Monitor, Smartphone, Zap
+  Radio, Monitor, Smartphone, Zap, ScanLine
 } from 'lucide-react';
 import { generateSchedule, calculateGateLoads, ZoneSchedule } from '../lib/zoneAlgorithm';
 import { supabase } from '../lib/supabase';
@@ -657,7 +657,7 @@ export default function CreateEvent() {
                 </div>
               </div>
 
-              <div className="p-6">
+              <div className="p-6 border-b border-white/10">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
                     <Smartphone className="w-5 h-5 text-stop" />
@@ -697,6 +697,42 @@ export default function CreateEvent() {
                           <Download className="w-4 h-4"/> Download PNG
                         </button>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                    <ScanLine className="w-5 h-5 text-[#4D9FFF]" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-lg mb-1 uppercase tracking-wider font-mono text-sm text-dim">Gate Staff Scanners</h3>
+                    <p className="text-sm text-dim mb-4">Send these unique links to the security team at each gate. Their smartphones will turn into high-speed QR scanners.</p>
+                    
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      {draft.gates.map((gate) => (
+                        <div key={gate} className="bg-background border border-white/10 rounded-xl p-3 flex items-center justify-between shadow-inner">
+                          <span className="font-bold text-sm truncate pr-2">{gate}</span>
+                          <div className="flex gap-2 shrink-0">
+                            <button 
+                              onClick={() => handleCopy(`${baseOrigin}/gate/${eventId}/${encodeURIComponent(gate)}`, `gate-${gate}`)}
+                              className="px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded text-xs transition-colors flex items-center gap-1.5"
+                            >
+                              {copiedLink === `gate-${gate}` ? <CheckCircle2 className="w-3.5 h-3.5 text-go" /> : <Copy className="w-3.5 h-3.5"/>}
+                              Copy
+                            </button>
+                            <Link 
+                              to={`/gate/${eventId}/${encodeURIComponent(gate)}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="px-3 py-1.5 bg-white/10 text-white font-bold rounded text-xs hover:bg-white/20 transition-colors flex items-center gap-1.5"
+                            >
+                              Open <ExternalLink className="w-3.5 h-3.5"/>
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
