@@ -50,7 +50,7 @@ export function generateSchedule(
       id: zone,
       name: `Zone ${zone}`,
       exitTime: currentTime.toISOString(),
-      status: index === 0 ? 'ACTIVE' : 'WAIT',
+      status: 'WAIT',
       gates: zoneGateMap[zone] || [],
       estimatedPeople: peoplePerZone
     });

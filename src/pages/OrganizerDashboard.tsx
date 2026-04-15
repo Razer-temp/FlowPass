@@ -155,6 +155,39 @@ export default function OrganizerDashboard() {
     };
   }, [eventId, navigate]);
 
+  // Automated System: Unlock Zones at scheduled exit_time
+  useEffect(() => {
+    if (isPaused || isEnding || event?.status === 'COMPLETED' || zones.length === 0) return;
+
+    const timer = setInterval(() => {
+      const currentTime = Date.now();
+      
+      zones.forEach(async (zone) => {
+        if (zone.status === 'WAIT') {
+          const exitTime = new Date(zone.exit_time).getTime();
+          // If the scheduled time has arrived or passed
+          if (currentTime >= exitTime) {
+            try {
+              // Optimistically update local state to prevent multiple triggers before DB responds
+              setZones(current => current.map(z => z.id === zone.id ? { ...z, status: 'ACTIVE' } : z));
+              
+              await supabase.from('zones').update({ status: 'ACTIVE' }).eq('id', zone.id);
+              await supabase.from('activity_log').insert({
+                event_id: eventId, 
+                action: `${zone.name} automatically unlocked at scheduled time`, 
+                type: 'SYSTEM'
+              });
+            } catch (error) {
+              console.error("Auto unlock failed", error);
+            }
+          }
+        }
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [zones, isPaused, isEnding, event?.status, eventId]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">

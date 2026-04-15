@@ -10,6 +10,8 @@ import { generateSchedule, calculateGateLoads, ZoneSchedule } from '../lib/zoneA
 import { supabase } from '../lib/supabase';
 import { QRCodeCanvas } from 'qrcode.react';
 import { sanitizeText } from '../lib/sanitize';
+import DatePicker from '../components/ui/DatePicker';
+import TimePicker from '../components/ui/TimePicker';
 
 interface EventDraft {
   eventName: string;
@@ -74,6 +76,11 @@ export default function CreateEvent() {
     localStorage.setItem('flowpass_draft', JSON.stringify(draft));
   }, [draft]);
 
+  // Scroll to top when step changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step]);
+
   const updateDraft = (updates: Partial<EventDraft>) => {
     setDraft(prev => ({ ...prev, ...updates }));
   };
@@ -135,7 +142,7 @@ export default function CreateEvent() {
       const zonesToInsert = schedule.map(zone => ({
         event_id: eventData.id,
         name: zone.name,
-        status: zone.status,
+        status: 'WAIT', // FORCING WAIT STATUS to prevent cached ACTIVE values from triggering early unlock
         exit_time: zone.exitTime,
         gates: zone.gates,
         estimated_people: zone.estimatedPeople
@@ -232,11 +239,9 @@ export default function CreateEvent() {
                     Event Date *
                     {draft.date && <CheckCircle2 className="w-4 h-4 text-go" />}
                   </label>
-                  <input 
-                    type="date" 
+                  <DatePicker 
                     value={draft.date}
-                    onChange={e => updateDraft({ date: e.target.value })}
-                    className="w-full bg-background border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-go transition-colors"
+                    onChange={date => updateDraft({ date })}
                   />
                 </div>
                 <div className="bg-card border border-white/5 p-6 rounded-2xl">
@@ -244,11 +249,9 @@ export default function CreateEvent() {
                     Event End Time *
                     {draft.endTime && <CheckCircle2 className="w-4 h-4 text-go" />}
                   </label>
-                  <input 
-                    type="time" 
+                  <TimePicker 
                     value={draft.endTime}
-                    onChange={e => updateDraft({ endTime: e.target.value })}
-                    className="w-full bg-background border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-go transition-colors"
+                    onChange={time => updateDraft({ endTime: time })}
                   />
                 </div>
               </div>
@@ -435,7 +438,7 @@ export default function CreateEvent() {
                     <div key={zone.id} className="flex items-start gap-4 p-4 rounded-xl bg-card border border-white/5">
                       <div className="mt-1">
                         {zone.status === 'ACTIVE' ? <div className="w-3 h-3 rounded-full bg-go shadow-[0_0_10px_rgba(0,255,135,0.5)]" /> : 
-                         i === 1 ? <div className="w-3 h-3 rounded-full bg-wait" /> : 
+                         zone.status === 'WAIT' ? <div className="w-3 h-3 rounded-full bg-wait" /> : 
                          <div className="w-3 h-3 rounded-full bg-stop" />}
                       </div>
                       <div className="flex-1">
@@ -519,7 +522,7 @@ export default function CreateEvent() {
                   {schedule.map(zone => (
                     <div key={zone.id} className="flex items-center justify-between bg-background p-3 rounded-lg border border-white/5">
                       <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${zone.status === 'ACTIVE' ? 'bg-go' : 'bg-stop'}`} />
+                        <div className={`w-2 h-2 rounded-full ${zone.status === 'ACTIVE' ? 'bg-go' : zone.status === 'WAIT' ? 'bg-wait' : 'bg-stop'}`} />
                         <span className="font-bold">{zone.name}</span>
                       </div>
                       <div className="flex items-center gap-6">
