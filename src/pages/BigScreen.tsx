@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { QRCodeSVG } from 'qrcode.react';
 import { Megaphone, AlertTriangle, CheckCircle2, PauseCircle } from 'lucide-react';
 
 export default function BigScreen() {
@@ -13,6 +14,7 @@ export default function BigScreen() {
   
   // Zero-drift clock
   const [now, setNow] = useState(Date.now());
+  const [scale, setScale] = useState(1);
 
   useEffect(() => {
     // Request fullscreen on mount
@@ -30,6 +32,17 @@ export default function BigScreen() {
     // Zero-drift timer
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const scaleX = window.innerWidth / 1920;
+      const scaleY = window.innerHeight / 1080;
+      setScale(Math.min(scaleX, scaleY));
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
@@ -132,41 +145,41 @@ export default function BigScreen() {
   const blockedGates = gates.filter(g => g.status === 'BLOCKED');
   const hasBlockedGate = blockedGates.length > 0;
 
-  // Render Full Screen Overlays
-  if (allCleared) {
-    return (
-      <div className="min-h-screen bg-[#0A2E1A] flex flex-col items-center justify-center text-white p-12 text-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-go to-transparent" />
-        <CheckCircle2 className="w-48 h-48 text-go mb-12 z-10" />
-        <h1 className="text-[120px] font-heading font-bold mb-8 z-10 leading-none">ALL ZONES CLEARED</h1>
-        <p className="text-[48px] font-body mb-4 z-10">Thank you for using FlowPass.</p>
-        <p className="text-[48px] font-body mb-16 z-10">Everyone has exited safely.</p>
-        <div className="text-[32px] font-body text-white/70 z-10">
-          <p>{event.name}</p>
-          <p>{event.venue} — {new Date(event.date).toLocaleDateString()}</p>
+  const renderContent = () => {
+    if (allCleared) {
+      return (
+        <div className="w-[1920px] h-[1080px] bg-[#0A2E1A] flex flex-col items-center justify-center text-white p-12 text-center relative overflow-hidden">
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-go to-transparent" />
+          <CheckCircle2 className="w-48 h-48 text-go mb-12 z-10" />
+          <h1 className="text-[120px] font-heading font-bold mb-8 z-10 leading-none">ALL ZONES CLEARED</h1>
+          <p className="text-[48px] font-body mb-4 z-10">Thank you for using FlowPass.</p>
+          <p className="text-[48px] font-body mb-16 z-10">Everyone has exited safely.</p>
+          <div className="text-[32px] font-body text-white/70 z-10">
+            <p>{event.name}</p>
+            <p>{event.venue} — {new Date(event.date).toLocaleDateString()}</p>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (allPaused) {
-    return (
-      <div className="min-h-screen bg-[#0A0A2E] flex flex-col items-center justify-center text-white p-12 text-center border-8 border-amber-500/50 animate-pulse">
-        <PauseCircle className="w-48 h-48 text-amber-500 mb-12" />
-        <h1 className="text-[120px] font-heading font-bold mb-8 leading-none text-amber-500">ALL EXITS PAUSED</h1>
-        <p className="text-[64px] font-body mb-4">Please remain in your seats.</p>
-        <p className="text-[64px] font-body mb-16">Exit will resume shortly.</p>
-        <div className="text-[40px] font-body text-white/70">
-          <p>Stay calm · Follow instructions · Staff are here to help</p>
+    if (allPaused) {
+      return (
+        <div className="w-[1920px] h-[1080px] bg-[#0A0A2E] flex flex-col items-center justify-center text-white p-12 text-center border-8 border-amber-500/50 animate-pulse">
+          <PauseCircle className="w-48 h-48 text-amber-500 mb-12" />
+          <h1 className="text-[120px] font-heading font-bold mb-8 leading-none text-amber-500">ALL EXITS PAUSED</h1>
+          <p className="text-[64px] font-body mb-4">Please remain in your seats.</p>
+          <p className="text-[64px] font-body mb-16">Exit will resume shortly.</p>
+          <div className="text-[40px] font-body text-white/70">
+            <p>Stay calm · Follow instructions · Staff are here to help</p>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col text-white overflow-hidden">
-      
-      {/* ① HEADER BAR */}
+    return (
+      <div className="w-[1920px] h-[1080px] bg-background flex flex-col text-white overflow-hidden">
+        
+        {/* ① HEADER BAR */}
       <header className="flex items-center justify-between px-12 py-8 border-b border-white/10 bg-surface">
         <div className="text-[64px] font-timer tracking-wider text-go">🎫 FLOWPASS</div>
         <div className="text-center">
@@ -284,13 +297,17 @@ export default function BigScreen() {
       <div className="absolute bottom-32 right-12 flex flex-col items-center z-20">
         <div className="relative w-32 h-32 bg-white rounded-xl p-2 mb-4">
           <div className="absolute inset-0 bg-go/30 rounded-xl animate-radar -z-10" />
-          {/* Placeholder QR */}
-          <div className="w-full h-full bg-black flex items-center justify-center">
-            <div className="text-white text-xs text-center">QR<br/>CODE</div>
+          <div className="w-full h-full flex items-center justify-center bg-white rounded-lg overflow-hidden">
+            <QRCodeSVG 
+              value={`${window.location.origin}/register/${eventId}`} 
+              size={112}
+              level="H"
+              includeMargin={false}
+            />
           </div>
         </div>
         <div className="text-center bg-black/50 backdrop-blur px-4 py-2 rounded-lg">
-          <p className="text-xl font-bold">flowpass.app/register</p>
+          <p className="text-xl font-bold">{window.location.host}/register/{eventId?.slice(0,4)}...</p>
           <p className="text-sm text-dim">Scan to get your FlowPass</p>
         </div>
       </div>
@@ -319,6 +336,23 @@ export default function BigScreen() {
           )}
         </div>
       </footer>
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 w-screen h-screen bg-black flex items-center justify-center overflow-hidden">
+      <div 
+        style={{ 
+          width: '1920px', 
+          height: '1080px', 
+          transform: `scale(${scale})`, 
+          transformOrigin: 'center' 
+        }}
+        className="relative"
+      >
+        {renderContent()}
+      </div>
     </div>
   );
 }
