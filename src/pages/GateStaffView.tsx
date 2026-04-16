@@ -35,6 +35,8 @@ export default function GateStaffView() {
   const [currentGateStatus, setCurrentGateStatus] = useState('CLEAR');
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [scannerError, setScannerError] = useState<string | null>(null);
+  const [isProcessingScan, setIsProcessingScan] = useState(false);
 
   // Zero-drift clock for countdowns
   const [now, setNow] = useState(Date.now());
@@ -281,41 +283,113 @@ export default function GateStaffView() {
       {showScanner && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
           <div className="p-6 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0 z-10">
-            <h3 className="font-bold text-xl">Scan Pass</h3>
-            <button onClick={() => setShowScanner(false)} className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition-colors">
+            <div>
+              <h3 className="font-bold text-xl">Scan Pass</h3>
+              <p className="text-xs text-dim">Using back camera</p>
+            </div>
+            <button 
+              onClick={() => {
+                setShowScanner(false);
+                setScannerError(null);
+              }} 
+              className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+            >
               <X className="w-6 h-6" />
             </button>
           </div>
-          <div className="flex-1 bg-black flex items-center justify-center">
-            <div className="w-full max-w-md aspect-square overflow-hidden relative">
-              <Scanner
-                onScan={(result) => {
-                  if (result && result.length > 0) {
-                    const url = result[0].rawValue;
-                    if (url.includes('/pass/')) {
-                      const id = url.split('/pass/')[1];
-                      if (id) {
-                        const shortCode = id.slice(-6).toUpperCase();
-                        setInputCode(shortCode);
-                        setShowScanner(false);
-                        handleValidate(undefined, shortCode);
+
+          <div className="flex-1 bg-black flex flex-col items-center justify-center">
+            {scannerError ? (
+              <div className="p-8 text-center max-w-sm">
+                <div className="w-16 h-16 bg-stop/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-8 h-8 text-stop" />
+                </div>
+                <h4 className="text-xl font-bold mb-2">Camera Error</h4>
+                <p className="text-dim mb-6">{scannerError}</p>
+                <div className="bg-white/5 rounded-xl p-4 text-left text-sm space-y-2 mb-8">
+                  <p>• Ensure you granted camera permissions</p>
+                  <p>• Make sure no other app is using the camera</p>
+                  <p>• Try reloading the page</p>
+                </div>
+                <button 
+                  onClick={() => setScannerError(null)}
+                  className="w-full py-4 bg-white text-background font-bold rounded-xl"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : (
+              <div className="w-full max-w-md aspect-square overflow-hidden relative border-2 border-white/10 rounded-3xl">
+                {isProcessingScan && (
+                  <div className="absolute inset-0 z-20 bg-go/20 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
+                    <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4" />
+                    <p className="font-bold text-lg">Validating Pass...</p>
+                  </div>
+                )}
+                
+                <Scanner
+                  onScan={(result) => {
+                    if (isProcessingScan) return;
+                    if (result && result.length > 0) {
+                      const rawValue = result[0].rawValue;
+                      console.log('Scanned payload:', rawValue);
+
+                      // Robust ID extraction: Look for anything after /pass/ or just the UUID-like pattern
+                      let extractedId = '';
+                      
+                      if (rawValue.includes('/pass/')) {
+                        // Extract everything after /pass/ until a ? or # or end of string
+                        const match = rawValue.match(/\/pass\/([^\/\?\#]+)/);
+                        if (match && match[1]) {
+                          extractedId = match[1];
+                        }
+                      } else if (rawValue.length > 30) {
+                        // Likely a raw UUID
+                        extractedId = rawValue.trim();
+                      }
+
+                      if (extractedId) {
+                        setIsProcessingScan(true);
+                        // Brief delay for visual feedback
+                        setTimeout(() => {
+                          const shortCode = extractedId.slice(-6).toUpperCase();
+                          setInputCode(shortCode);
+                          setShowScanner(false);
+                          setIsProcessingScan(false);
+                          handleValidate(undefined, shortCode);
+                        }, 600);
                       }
                     }
-                  }
-                }}
-                formats={['qr_code']}
-                sound={false}
-                onError={(err) => {
-                  console.error('QR Scanner Error:', err);
-                }}
-                components={{
-                  finder: true,
-                }}
-              />
-            </div>
+                  }}
+                  formats={['qr_code']}
+                  constraints={{
+                    facingMode: 'environment',
+                    aspectRatio: 1
+                  }}
+                  scanDelay={500}
+                  onError={(err) => {
+                    console.error('QR Scanner Error:', err);
+                    setScannerError(err?.message || 'Failed to access camera');
+                  }}
+                  components={{
+                    finder: true,
+                  }}
+                  styles={{
+                    container: { width: '100%', height: '100%' },
+                    video: { width: '100%', height: '100%', objectFit: 'cover' }
+                  }}
+                />
+                
+                {/* Custom Overlay Lines */}
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                  <div className="w-48 h-48 border-2 border-white/20 rounded-3xl" />
+                  <div className="absolute w-full h-0.5 bg-go/30 animate-scan-line top-1/2 -translate-y-1/2" />
+                </div>
+              </div>
+            )}
           </div>
           <div className="p-8 bg-black text-center text-dim text-sm pb-12">
-            Point camera at the attendee's FlowPass QR code.
+            {!scannerError && "Point camera at the attendee's FlowPass QR code."}
           </div>
         </div>
       )}
