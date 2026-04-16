@@ -1,0 +1,44 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Build
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/flowpass'
+      - '--build-arg'
+      - 'VITE_SUPABASE_URL=$_VITE_SUPABASE_URL'
+      - '--build-arg'
+      - 'VITE_SUPABASE_ANON_KEY=$_VITE_SUPABASE_ANON_KEY'
+      - '.'
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Push
+    args: ['push', 'gcr.io/$PROJECT_ID/flowpass']
+
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: Deploy
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'flowpass'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/flowpass'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+
+images:
+  - 'gcr.io/$PROJECT_ID/flowpass'
+
+substitutions:
+  _VITE_SUPABASE_URL: "https://zzijopwzyedklahwvnqz.supabase.co"
+  _VITE_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6aWpvcHd6eWVka2xhaHd2bnF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMDI0NDAsImV4cCI6MjA5MTU3ODQ0MH0.4B-21lZsQ3V1IOne-42N7wfPreJ1-P3L8eSuK9BJEQw"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
