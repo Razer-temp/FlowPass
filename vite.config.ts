@@ -7,9 +7,10 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
     plugins: [react(), tailwindcss()],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
+    // SECURITY: API keys are never injected into the client bundle.
+    // Gemini AI calls should be routed through a server-side proxy
+    // or Supabase Edge Function to keep the key secret.
+    define: {},
     resolve: {
 
       alias: {

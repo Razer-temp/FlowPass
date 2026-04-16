@@ -34,10 +34,12 @@ describe('generateSchedule', () => {
     expect(schedule).toHaveLength(3);
   });
 
-  it('test 5: first zone always has status = ACTIVE', () => {
+  it('test 5: all zones start with WAIT status (safety first — no premature exits)', () => {
     const zoneGateMap = { A: ['Gate 1'], B: ['Gate 2'] };
     const schedule = generateSchedule('22:00', '2026-04-13', 10000, 2, zoneGateMap);
-    expect(schedule[0].status).toBe('ACTIVE');
+    // All zones are initialized to WAIT — organizer must manually activate
+    expect(schedule[0].status).toBe('WAIT');
+    expect(schedule[1].status).toBe('WAIT');
   });
 });
 
@@ -51,29 +53,32 @@ describe('assignZoneFromSeat', () => {
 
   it('test 6: assignZoneFromSeat("Stand A") → Zone A', () => {
     const result = assignZoneFromSeat('Stand A, Row 5, Seat 12', mockZones);
-    expect(result).toBe(mockZones[0]); // Zone A
+    expect(result).not.toBeNull();
+    expect(result.zone).toBe(mockZones[0]); // Zone A
   });
 
   it('test 7: assignZoneFromSeat("Stand C") → Zone C', () => {
     const result = assignZoneFromSeat('Stand C, Row 2, Seat 8', mockZones);
-    expect(result).toBe(mockZones[2]); // Zone C
+    expect(result).not.toBeNull();
+    expect(result.zone).toBe(mockZones[2]); // Zone C
   });
 
   it('test 8: assignZoneFromSeat("VIP") → VIP zone', () => {
     const result = assignZoneFromSeat('VIP Box 3', mockZones);
-    expect(result).toBe(mockZones[3]); // VIP Zone
+    expect(result).not.toBeNull();
+    expect(result.zone).toBe(mockZones[3]); // VIP Zone
   });
 
-  it('test 9: assignZoneFromSeat("gibberish") → least populated zone (fallback)', () => {
+  it('test 9: assignZoneFromSeat("gibberish") → least populated non-VIP zone (smart fallback)', () => {
     const result = assignZoneFromSeat('Random Gibberish Text', mockZones);
-    // Should return the zone with fewest estimated_people: VIP Zone (30)
-    expect(result).toBe(mockZones[3]);
+    expect(result).not.toBeNull();
+    // Load balancing excludes VIP zones for general public — picks Zone C (50 people)
+    expect(result.zone).toBe(mockZones[2]);
   });
 
-  it('test 10: pass ID format is valid UUID (Supabase generates UUIDs)', () => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    // Simulating a UUID that Supabase would generate
-    const mockPassId = 'a1b2c3d4-e5f6-7890-abcd-1234567890ef';
-    expect(mockPassId).toMatch(uuidRegex);
+  it('test 10: null or empty input returns null (input validation)', () => {
+    expect(assignZoneFromSeat('', mockZones)).toBeNull();
+    expect(assignZoneFromSeat(null, mockZones)).toBeNull();
+    expect(assignZoneFromSeat('ab', [])).toBeNull();  // No zones
   });
 });

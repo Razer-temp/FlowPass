@@ -9,7 +9,7 @@ import {
 import { generateSchedule, calculateGateLoads, ZoneSchedule } from '../lib/zoneAlgorithm';
 import { supabase } from '../lib/supabase';
 import { QRCodeCanvas } from 'qrcode.react';
-import { sanitizeText } from '../lib/sanitize';
+import { sanitizeEventField, sanitizePin } from '../lib/sanitize';
 import DatePicker from '../components/ui/DatePicker';
 import TimePicker from '../components/ui/TimePicker';
 
@@ -125,8 +125,8 @@ export default function CreateEvent() {
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .insert({
-          name: sanitizeText(draft.eventName),
-          venue: sanitizeText(draft.venueName),
+          name: sanitizeEventField(draft.eventName),
+          venue: sanitizeEventField(draft.venueName),
           date: draft.date,
           end_time: draft.endTime,
           crowd: Number(draft.totalCrowd),

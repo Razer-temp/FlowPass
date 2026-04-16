@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { assignZoneFromSeat } from '../lib/zoneAlgorithm';
-import { sanitizeName, sanitizeSeat } from '../lib/sanitize';
+import { sanitizeName, sanitizeSeat, isValidUUID } from '../lib/sanitize';
 import { CheckCircle2, Ticket, MapPin, ShieldCheck, AlertCircle } from 'lucide-react';
 import PassCard from '../components/PassCard';
 
@@ -25,9 +25,11 @@ export default function AttendeeRegistration() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const lastSubmitTime = useRef<number>(0); // Rate limiting
+  const RATE_LIMIT_MS = 5000; // 5-second cooldown between submissions
 
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId || !isValidUUID(eventId)) return;
 
     // Check offline cache first
     const cachedPass = localStorage.getItem(`flowpass_pass_${eventId}`);
@@ -82,11 +84,34 @@ export default function AttendeeRegistration() {
     setSubmitError(null);
     if (!validateFields()) return;
 
+    // Rate limiting — prevent rapid repeat submissions
+    const now = Date.now();
+    if (now - lastSubmitTime.current < RATE_LIMIT_MS) {
+      setSubmitError(`Please wait ${Math.ceil((RATE_LIMIT_MS - (now - lastSubmitTime.current)) / 1000)} seconds before trying again.`);
+      return;
+    }
+    lastSubmitTime.current = now;
+
     setIsSubmitting(true);
 
     try {
       const sanitizedName = sanitizeName(name);
       const sanitizedSeat = sanitizeSeat(seat);
+
+      // Duplicate pass prevention — check if this seat is already registered
+      const { data: existingPass } = await supabase
+        .from('passes')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('seat_number', sanitizedSeat)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingPass) {
+        setSubmitError('This seat has already been registered. If this is an error, contact event staff.');
+        setIsSubmitting(false);
+        return;
+      }
 
       const { data: passData, error } = await supabase
         .from('passes')

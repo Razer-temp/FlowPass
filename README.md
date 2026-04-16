@@ -91,11 +91,33 @@ src/
 
 ## 🔒 Security
 
-- **Row Level Security (RLS)** enabled on all 5 Supabase tables
-- **UUID-based IDs** prevent sequential enumeration attacks
-- **Input sanitization** strips HTML/script injection before database writes
-- **Anon key only** — no service key exposed to client
-- **Environment variables** for all secrets (no hardcoded keys)
+FlowPass implements defense-in-depth security across multiple layers:
+
+### Database Security
+- **Row Level Security (RLS)** enabled on all 5 Supabase tables — the anon key can only perform RLS-allowed operations
+- **UUID-based IDs** prevent sequential enumeration attacks on passes and events
+- **Anon key only** — no admin/service key is ever exposed to the client bundle
+
+### Input Sanitization (`src/lib/sanitize.ts`)
+- **HTML tag stripping** — prevents stored XSS via `<script>`, `<img onerror>`, etc.
+- **Dangerous protocol blocking** — removes `javascript:`, `data:`, `vbscript:`, `blob:`, `file:` schemes
+- **Event handler removal** — strips `onclick=`, `onerror=`, and all `on*=` attributes
+- **Field-specific sanitizers** — `sanitizeName()`, `sanitizeSeat()`, `sanitizeEventField()`, `sanitizePin()` each enforce character allowlists and length limits
+- **UUID validation** — `isValidUUID()` validates URL parameters before database queries
+
+### Application Security
+- **Duplicate pass prevention** — checks if a seat is already registered before creating a new pass
+- **Rate limiting** — 5-second cooldown between form submissions to prevent spam/abuse
+- **Ghost Protocol** — when an event ends, all attendee PII (names, phones, passes) is permanently purged from the database
+- **No API keys in client bundle** — Gemini/server-side keys are never injected into frontend JavaScript
+
+### Infrastructure Security (`nginx.conf`)
+- **Content-Security-Policy** — restricts resource loading to own origin + Supabase + Google Fonts
+- **X-Frame-Options: DENY** — prevents clickjacking by blocking iframe embedding
+- **X-Content-Type-Options: nosniff** — prevents MIME type sniffing attacks
+- **Permissions-Policy** — blocks unused browser APIs (microphone, geolocation, payment)
+- **Dotfile blocking** — nginx returns 404 for any `/.env`, `/.git` access attempts
+- **Referrer-Policy** — controls information leakage via Referer headers
 
 ## ♿ Accessibility
 
@@ -108,7 +130,7 @@ src/
 
 ## 🧪 Testing
 
-Run all 24 unit tests:
+Run all 41 unit tests:
 
 ```bash
 npm test
@@ -118,6 +140,7 @@ Test coverage:
 - **zoneAlgorithm.test.js** (10 tests) — Gap calculation, schedule generation, seat-to-zone assignment
 - **passStatus.test.js** (6 tests) — Pass state logic, countdown triggers, QR greyout
 - **gateAssignment.test.js** (8 tests) — Gate validation, smart reassignment, wrong gate detection
+- **sanitize.test.js** (17 tests) — XSS prevention, HTML stripping, protocol blocking, UUID validation, PIN sanitization
 
 ## 🚀 Running Locally
 
