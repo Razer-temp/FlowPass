@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import type { FlowEvent, FlowZone, FlowPass, ValidationResult, ShiftStats } from '../types';
 import { CheckCircle2, XCircle, AlertTriangle, Clock, Camera, WifiOff, ArrowLeft, PauseCircle, X } from 'lucide-react';
 import { Scanner } from '@yudiel/react-qr-scanner';
+import useWakeLock from '../hooks/useWakeLock';
 
 export default function GateStaffView() {
   const { eventId, gateId } = useParams();
   const decodedGateId = decodeURIComponent(gateId || '');
   
-  const [event, setEvent] = useState<any>(null);
-  const [zones, setZones] = useState<any[]>([]);
-  const [passesCache, setPassesCache] = useState<Record<string, any>>({});
+  const [event, setEvent] = useState<FlowEvent | null>(null);
+  const [zones, setZones] = useState<FlowZone[]>([]);
+  const [passesCache, setPassesCache] = useState<Record<string, FlowPass>>({});
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   
   // Shift Stats
-  const [shiftStats, setShiftStats] = useState({
+  const [shiftStats, setShiftStats] = useState<ShiftStats>({
     checked: 0,
     valid: 0,
     invalid: 0,
@@ -25,7 +27,7 @@ export default function GateStaffView() {
 
   // Validation State
   const [inputCode, setInputCode] = useState('');
-  const [validationResult, setValidationResult] = useState<any>(null);
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [flashColor, setFlashColor] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -42,6 +44,9 @@ export default function GateStaffView() {
     return () => clearInterval(timer);
   }, []);
 
+  // Prevent screen sleep during scanning
+  useWakeLock();
+
   useEffect(() => {
     // Online/Offline detection
     const handleOnline = () => setIsOffline(false);
@@ -49,23 +54,9 @@ export default function GateStaffView() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Wake Lock
-    let wakeLock: any = null;
-    const requestWakeLock = async () => {
-      try {
-        if ('wakeLock' in navigator) {
-          wakeLock = await (navigator as any).wakeLock.request('screen');
-        }
-      } catch (err) {
-        console.warn("Wake Lock failed:", err);
-      }
-    };
-    requestWakeLock();
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      if (wakeLock !== null) wakeLock.release();
     };
   }, []);
 
@@ -91,7 +82,7 @@ export default function GateStaffView() {
         // In production with 50k passes, we'd paginate or only fetch active ones.
         const { data: passesData } = await supabase.from('passes').select('*').eq('event_id', eventId);
         if (passesData) {
-          const cache: Record<string, any> = {};
+          const cache: Record<string, FlowPass> = {};
           passesData.forEach(p => cache[p.id] = p);
           setPassesCache(cache);
         }
@@ -105,7 +96,7 @@ export default function GateStaffView() {
     // Real-time Subscriptions
     const eventSub = supabase.channel(`gate-event-${eventId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events', filter: `id=eq.${eventId}` }, payload => {
-        setEvent((current: any) => {
+        setEvent((current: FlowEvent | null) => {
           const newData = { ...current, ...payload.new };
           const statuses = newData.gate_status || {};
           const gateStatus = statuses[decodedGateId] || 'CLEAR';
@@ -174,7 +165,7 @@ export default function GateStaffView() {
     const code = codeToUse.trim().toLowerCase();
     
     // Find pass by short code (last 6 chars of UUID) or seat number
-    const pass = Object.values(passesCache).find(p => 
+    const pass = Object.values(passesCache).find((p: FlowPass) => 
       p.id.toLowerCase().endsWith(code) || 
       p.seat_number.toLowerCase().includes(code)
     );
@@ -277,7 +268,7 @@ export default function GateStaffView() {
   }
 
   const isPaused = event.status === 'PAUSED';
-  const passesThroughGate = Object.values(passesCache).filter(p => p.gate_id === decodedGateId && p.status === 'USED').length;
+  const passesThroughGate = Object.values(passesCache).filter((p: FlowPass) => p.gate_id === decodedGateId && p.status === 'USED').length;
 
   return (
     <div className="min-h-screen bg-background text-white pb-24 relative">

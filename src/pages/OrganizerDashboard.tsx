@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
+import type { FlowEvent, FlowZone, FlowPass, FlowActivityLog, GateDisplay } from '../types';
 import { 
   Megaphone, Unlock, PauseCircle, MonitorPlay, 
   Activity, Users, CheckCircle2, AlertTriangle, PlayCircle, Database, PowerOff, ShieldX,
@@ -22,11 +23,11 @@ export default function OrganizerDashboard() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   
-  const [event, setEvent] = useState<any>(null);
-  const [zones, setZones] = useState<any[]>([]);
-  const [gates, setGates] = useState<any[]>([]);
-  const [passes, setPasses] = useState<any[]>([]);
-  const [logs, setLogs] = useState<any[]>([]);
+  const [event, setEvent] = useState<FlowEvent | null>(null);
+  const [zones, setZones] = useState<FlowZone[]>([]);
+  const [gates, setGates] = useState<GateDisplay[]>([]);
+  const [passes, setPasses] = useState<FlowPass[]>([]);
+  const [logs, setLogs] = useState<FlowActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
@@ -104,7 +105,7 @@ export default function OrganizerDashboard() {
     // Real-time subscriptions
     const eventSub = supabase.channel(`event-${eventId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `id=eq.${eventId}` }, payload => {
-        setEvent((current: any) => {
+        setEvent((current: FlowEvent | null) => {
           const newData = { ...current, ...payload.new };
           setIsPaused(newData.status === 'PAUSED');
           if (newData.gates) {

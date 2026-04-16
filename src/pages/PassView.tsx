@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import type { FlowPass, FlowEvent, FlowZone, FlowAnnouncement, GateDisplay } from '../types';
+import useWakeLock from '../hooks/useWakeLock';
 import LivePassCard from '../components/pass/LivePassCard';
 import GateStatus from '../components/pass/GateStatus';
 import AnnouncementFeed from '../components/pass/AnnouncementFeed';
@@ -9,16 +11,19 @@ import { X } from 'lucide-react';
 
 export default function PassView() {
   const { passId } = useParams();
-  const [pass, setPass] = useState<any>(null);
-  const [event, setEvent] = useState<any>(null);
-  const [zone, setZone] = useState<any>(null);
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [gates, setGates] = useState<any[]>([]);
+  const [pass, setPass] = useState<FlowPass | null>(null);
+  const [event, setEvent] = useState<FlowEvent | null>(null);
+  const [zone, setZone] = useState<FlowZone | null>(null);
+  const [announcements, setAnnouncements] = useState<FlowAnnouncement[]>([]);
+  const [gates, setGates] = useState<GateDisplay[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
   const [showTip, setShowTip] = useState(false);
   const [hasReassigned, setHasReassigned] = useState(false);
   const [originalGate, setOriginalGate] = useState<string | null>(null);
+
+  // Prevent screen sleep so QR code stays visible for gate staff
+  useWakeLock();
 
   useEffect(() => {
     // Brightness Tip Logic
@@ -26,31 +31,6 @@ export default function PassView() {
     if (!tipDismissed) {
       setShowTip(true);
     }
-
-    // Wake Lock API
-    let wakeLock: any = null;
-    const requestWakeLock = async () => {
-      try {
-        if ('wakeLock' in navigator) {
-          wakeLock = await (navigator as any).wakeLock.request('screen');
-        }
-      } catch (err) {
-        console.warn("Wake Lock failed:", err);
-      }
-    };
-    requestWakeLock();
-
-    const handleVisibilityChange = () => {
-      if (wakeLock !== null && document.visibilityState === 'visible') {
-        requestWakeLock();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (wakeLock !== null) wakeLock.release();
-    };
   }, []);
 
   useEffect(() => {
@@ -94,7 +74,7 @@ export default function PassView() {
     // Real-time subscriptions
     const eventSub = supabase.channel(`pass-event-${passId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events' }, payload => {
-        setEvent((current: any) => {
+        setEvent((current: FlowEvent | null) => {
           if (current && current.id === payload.new.id) {
             const updatedEvent = { ...current, ...payload.new };
             if (updatedEvent.gates) {
@@ -109,7 +89,7 @@ export default function PassView() {
 
     const passSub = supabase.channel(`pass-${passId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'passes', filter: `id=eq.${passId}` }, payload => {
-        setPass((current: any) => {
+        setPass((current: FlowPass | null) => {
           const updatedPass = { ...current, ...payload.new };
           if (current && current.gate_id !== updatedPass.gate_id) {
             setHasReassigned(true);
@@ -122,7 +102,7 @@ export default function PassView() {
     // We listen to zones because zone status changes (HOLD/ACTIVE) affect the pass
     const zoneSub = supabase.channel(`pass-zone-${passId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'zones' }, payload => {
-        setZone((current: any) => {
+        setZone((current: FlowZone | null) => {
           if (current && current.id === payload.new.id) return { ...current, ...payload.new };
           return current;
         });

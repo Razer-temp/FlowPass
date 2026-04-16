@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
+import type { FlowEvent, FlowZone, FlowPass } from '../types';
 import { assignZoneFromSeat } from '../lib/zoneAlgorithm';
 import { sanitizeName, sanitizeSeat, isValidUUID } from '../lib/sanitize';
 import { CheckCircle2, Ticket, MapPin, ShieldCheck, AlertCircle } from 'lucide-react';
@@ -9,8 +10,8 @@ import PassCard from '../components/PassCard';
 
 export default function AttendeeRegistration() {
   const { eventId } = useParams();
-  const [event, setEvent] = useState<any>(null);
-  const [zones, setZones] = useState<any[]>([]);
+  const [event, setEvent] = useState<FlowEvent | null>(null);
+  const [zones, setZones] = useState<FlowZone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Form State
@@ -19,9 +20,9 @@ export default function AttendeeRegistration() {
   const [phone, setPhone] = useState('');
   
   // Detection & Submission State
-  const [detectionResult, setDetectionResult] = useState<{ zone: any, reason: string } | null>(null);
+  const [detectionResult, setDetectionResult] = useState<{ zone: FlowZone, reason: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [generatedPass, setGeneratedPass] = useState<any>(null);
+  const [generatedPass, setGeneratedPass] = useState<FlowPass | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
