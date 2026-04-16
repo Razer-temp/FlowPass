@@ -165,7 +165,7 @@ export default function GateStaffView() {
     const code = codeToUse.trim().toLowerCase();
     
     // Find pass by short code (last 6 chars of UUID) or seat number
-    const pass = Object.values(passesCache).find((p: FlowPass) => 
+    const pass = (Object.values(passesCache) as FlowPass[]).find((p: FlowPass) => 
       p.id.toLowerCase().endsWith(code) || 
       p.seat_number.toLowerCase().includes(code)
     );
@@ -268,7 +268,7 @@ export default function GateStaffView() {
   }
 
   const isPaused = event.status === 'PAUSED';
-  const passesThroughGate = Object.values(passesCache).filter((p: FlowPass) => p.gate_id === decodedGateId && p.status === 'USED').length;
+  const passesThroughGate = (Object.values(passesCache) as FlowPass[]).filter((p: FlowPass) => p.gate_id === decodedGateId && p.status === 'USED').length;
 
   return (
     <div className="min-h-screen bg-background text-white pb-24 relative">
@@ -303,9 +303,12 @@ export default function GateStaffView() {
                     }
                   }
                 }}
-                onError={(err) => console.warn(err)}
+                formats={['qr_code']}
+                sound={false}
+                onError={(err) => {
+                  console.error('QR Scanner Error:', err);
+                }}
                 components={{
-                  audio: false,
                   finder: true,
                 }}
               />
