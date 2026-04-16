@@ -93,9 +93,46 @@ export default function GatePanel({ gates, zones, eventId }: GatePanelProps) {
       newGateStatus[gateName] = status;
       await supabase.from('events').update({ gate_status: newGateStatus }).eq('id', eventId);
       
+      // Logic for restoration when a gate is CLEAR
+      if (status === 'CLEAR') {
+        const mapping = eventData?.gate_status?.__mapping;
+        
+        // Fetch LATEST zones from DB to avoid stale prop data issues
+        const { data: latestZones } = await supabase.from('zones').select('*').eq('event_id', eventId);
+        
+        if (latestZones) {
+          for (const zone of latestZones) {
+            // Robust name matching: Normalize both to just the letters/labels (e.g. "Zone A" -> "A")
+            const zoneLabel = zone.name.toUpperCase().replace('ZONE', '').trim();
+            
+            let shouldBeAssigned = false;
+            
+            if (mapping) {
+              const assignedGatesForZone = mapping[zoneLabel] || [];
+              shouldBeAssigned = assignedGatesForZone.includes(gateName);
+            } else {
+              // Fallback for Legacy events: If no mapping, check if the zone name 
+              // contains the gate name partially or if they follow standard A-J mapping
+              // Or just assume if it's currently NOT in the gates array, but seems like it should be?
+              // Actually, safest is to check if it's currently in NO gates, or check default design.
+              // For Legacy, we'll use a simple heuristic: if the gate name (e.g. "Gate 1")
+              // was and is part of the event's gates list, it should probably be in all zones by default 
+              // UNLESS specifically unassigned (but we don't know that).
+              // So we'll skip legacy unless we're sure.
+              console.warn("Legacy event: No __mapping found. Skipping automatic restoration.");
+            }
+
+            if (shouldBeAssigned && !zone.gates.includes(gateName)) {
+              const newGates = [...zone.gates, gateName];
+              await supabase.from('zones').update({ gates: newGates }).eq('id', zone.id);
+            }
+          }
+        }
+      }
+
       await supabase.from('activity_log').insert({
         event_id: eventId,
-        action: `Gate ${gateName} marked as ${status}`,
+        action: `Gate ${gateName} marked as ${status} ${status === 'CLEAR' ? ' (Automatic restoration triggered)' : ''}`,
         type: 'SYSTEM'
       });
     } catch (e) {

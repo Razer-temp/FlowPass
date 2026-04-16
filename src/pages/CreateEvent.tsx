@@ -131,7 +131,10 @@ export default function CreateEvent() {
           end_time: draft.endTime,
           crowd: Number(draft.totalCrowd),
           gates: draft.gates,
-          pin: draft.pin
+          pin: draft.pin,
+          gate_status: {
+            __mapping: draft.zoneGateMap
+          }
         })
         .select()
         .single();

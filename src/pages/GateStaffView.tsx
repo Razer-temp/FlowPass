@@ -75,7 +75,11 @@ export default function GateStaffView() {
     const fetchInitialData = async () => {
       try {
         const { data: eventData } = await supabase.from('events').select('*').eq('id', eventId).single();
-        if (eventData) setEvent(eventData);
+        if (eventData) {
+          setEvent(eventData);
+          const statuses = eventData.gate_status || {};
+          setCurrentGateStatus(statuses[decodedGateId] || 'CLEAR');
+        }
 
         const { data: zonesData } = await supabase.from('zones').select('*').eq('event_id', eventId);
         if (zonesData) {
@@ -101,7 +105,15 @@ export default function GateStaffView() {
     // Real-time Subscriptions
     const eventSub = supabase.channel(`gate-event-${eventId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events', filter: `id=eq.${eventId}` }, payload => {
-        setEvent((current: any) => ({ ...current, ...payload.new }));
+        setEvent((current: any) => {
+          const newData = { ...current, ...payload.new };
+          const statuses = newData.gate_status || {};
+          const gateStatus = statuses[decodedGateId] || 'CLEAR';
+          if (gateStatus !== currentGateStatus) {
+            setCurrentGateStatus(gateStatus);
+          }
+          return newData;
+        });
       }).subscribe();
 
     const zonesSub = supabase.channel(`gate-zones-${eventId}`)
@@ -109,11 +121,18 @@ export default function GateStaffView() {
         setZones(current => {
           const updated = [...current];
           const index = updated.findIndex(z => z.id === payload.new.id);
+          const zoneIncludesGate = payload.new.gates && payload.new.gates.includes(decodedGateId);
+
           if (index !== -1) {
-            const mergedZone = { ...current[index], ...payload.new };
-            if (mergedZone.gates && mergedZone.gates.includes(decodedGateId)) {
-              updated[index] = mergedZone;
+            if (zoneIncludesGate) {
+              updated[index] = { ...current[index], ...payload.new };
+            } else {
+              // Remove zone if our gate was removed from it
+              return updated.filter(z => z.id !== payload.new.id);
             }
+          } else if (zoneIncludesGate) {
+            // Add zone back if it was previously missing and now includes our gate
+            return [...updated, payload.new];
           }
           return updated;
         });
