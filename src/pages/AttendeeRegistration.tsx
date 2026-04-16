@@ -19,7 +19,7 @@ export default function AttendeeRegistration() {
   const [phone, setPhone] = useState('');
   
   // Detection & Submission State
-  const [detectedZone, setDetectedZone] = useState<any>(null);
+  const [detectionResult, setDetectionResult] = useState<{ zone: any, reason: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [generatedPass, setGeneratedPass] = useState<any>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -52,17 +52,15 @@ export default function AttendeeRegistration() {
     fetchEventData();
   }, [eventId]);
 
-  // Smart Zone Detection Effect
   useEffect(() => {
-    if (seat.length >= 3 && zones.length > 0) {
-      const zone = assignZoneFromSeat(seat, zones);
-      if (zone && (!detectedZone || zone.id !== detectedZone.id)) {
-        setDetectedZone(zone);
-        // Haptic feedback snap
+    if (seat.length >= 2 && zones.length > 0) {
+      const result = assignZoneFromSeat(seat, zones);
+      if (result && (!detectionResult || result.zone.id !== detectionResult.zone.id)) {
+        setDetectionResult(result);
         if (navigator.vibrate) navigator.vibrate(50);
       }
     } else {
-      setDetectedZone(null);
+      setDetectionResult(null);
     }
   }, [seat, zones]);
 
@@ -74,7 +72,7 @@ export default function AttendeeRegistration() {
     if (phone && phone.replace(/\D/g, '').length !== 10 && phone.replace(/\D/g, '').length > 0) {
       newErrors.phone = 'Enter a valid 10-digit number';
     }
-    if (!detectedZone) newErrors.seat = 'Could not detect zone from seat — try adding Stand/Block';
+    if (!detectionResult) newErrors.seat = 'Could not detect zone from seat — try adding Stand/Block';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -94,8 +92,8 @@ export default function AttendeeRegistration() {
         .from('passes')
         .insert({
           event_id: eventId,
-          zone_id: detectedZone.id,
-          gate_id: detectedZone.gates[0],
+          zone_id: detectionResult.zone.id,
+          gate_id: detectionResult.zone.gates[0],
           attendee_name: sanitizedName,
           seat_number: sanitizedSeat,
           status: 'LOCKED'
@@ -112,7 +110,7 @@ export default function AttendeeRegistration() {
       // Log activity
       await supabase.from('activity_log').insert({
         event_id: eventId,
-        action: `Pass generated for ${name.trim()} in ${detectedZone.name}`,
+        action: `Pass generated for ${name.trim()} in ${detectionResult.zone.name}`,
         type: 'PASS'
       });
 
@@ -161,7 +159,7 @@ export default function AttendeeRegistration() {
 
         {isComplete ? null : generatedPass ? (
           /* ④ INSTANT PASS */
-          <PassCard pass={generatedPass} event={event} zone={zones.find(z => z.id === generatedPass.zone_id) || detectedZone} />
+          <PassCard pass={generatedPass} event={event} zone={zones.find(z => z.id === generatedPass.zone_id) || detectionResult?.zone} />
         ) : (
           /* ② SMART FORM */
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -223,7 +221,7 @@ export default function AttendeeRegistration() {
                   className={`w-full bg-surface border rounded-xl px-4 py-4 focus:outline-none focus:border-go transition-colors pl-12 ${errors.seat ? 'border-stop' : 'border-white/10'}`}
                 />
                 <MapPin className="absolute left-4 top-4 w-5 h-5 text-dim" />
-                {detectedZone && <CheckCircle2 className="absolute right-4 top-4 w-5 h-5 text-go" />}
+                {detectionResult && <CheckCircle2 className="absolute right-4 top-4 w-5 h-5 text-go" />}
               </div>
               {errors.seat ? (
                 <p id="seat-error" className="text-xs text-stop flex items-center gap-1 mt-1" role="alert">
@@ -232,29 +230,30 @@ export default function AttendeeRegistration() {
               ) : (
                 <div id="seat-hint" className="flex items-start gap-2 text-xs text-dim mt-2">
                   <span className="text-xl">💡</span>
-                  <p>Your zone and exit gate are auto-assigned from this. {seat.length >= 3 && !detectedZone ? "Can't detect zone yet — try adding Stand/Block" : ''}</p>
+                  <p>Your zone and exit gate are auto-assigned from this. {seat.length >= 2 && !detectionResult ? "Can't detect zone yet — try adding Stand/Block" : ''}</p>
                 </div>
               )}
             </div>
 
             {/* SMART ZONE PREVIEW */}
             <AnimatePresence>
-              {detectedZone && (
+              {detectionResult && (
                 <motion.div 
                   initial={{ opacity: 0, y: -10, height: 0 }}
                   animate={{ opacity: 1, y: 0, height: 'auto' }}
                   exit={{ opacity: 0, y: -10, height: 0 }}
                   className="bg-go/10 border border-go/30 rounded-xl p-4 overflow-hidden"
                 >
-                  <div className="flex items-center gap-2 text-go text-sm font-bold mb-2">
-                    <span>⚡ Auto-assigned:</span>
+                  <div className="flex items-center justify-between gap-2 text-go text-sm font-bold mb-2">
+                    <span className="flex items-center gap-1.5 underline decoration-go/30 underline-offset-4">⚡ {detectionResult.reason}</span>
+                    <span className="text-[10px] bg-go/20 px-2 py-0.5 rounded-full uppercase tracking-tighter">Smart AI</span>
                   </div>
                   <div className="flex justify-between items-end">
                     <div>
-                      <div className="text-xl font-bold text-white">{detectedZone.name} → {detectedZone.gates[0]}</div>
-                      <div className="text-sm text-dim">Exit opens at {new Date(detectedZone.exit_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div className="text-xl font-bold text-white">{detectionResult.zone.name} → {detectionResult.zone.gates[0]}</div>
+                      <div className="text-xs text-dim">Opening exit in approx {Math.floor((new Date(detectionResult.zone.exit_time).getTime() - Date.now()) / 60000)} mins</div>
                     </div>
-                    <div className="text-go text-sm font-medium">✅ Looking good</div>
+                    <div className="text-go text-xs font-medium">✅ Verified</div>
                   </div>
                 </motion.div>
               )}
@@ -299,14 +298,14 @@ export default function AttendeeRegistration() {
             {/* ③ THE MAIN CTA BUTTON */}
             <button 
               type="submit"
-              disabled={!name || !seat || !detectedZone || isSubmitting}
+              disabled={!name || !seat || !detectionResult || isSubmitting}
               aria-label="Generate your FlowPass exit pass"
               className="w-full py-4 bg-go text-background font-black text-xl rounded-xl hover:bg-go/90 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:transform-none disabled:hover:bg-go flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,135,0.2)] mt-8"
             >
               {isSubmitting ? (
                 <>
                   <div className="w-5 h-5 border-2 border-background border-t-transparent rounded-full animate-spin" />
-                  Generating... {detectedZone ? `Assigning ${detectedZone.name} · ${detectedZone.gates[0]}` : ''}
+                  Generating... {detectionResult ? `Assigning ${detectionResult.zone.name} · ${detectionResult.zone.gates[0]}` : ''}
                 </>
               ) : (
                 <>
