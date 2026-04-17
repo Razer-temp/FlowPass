@@ -1,4 +1,4 @@
-<![CDATA[<div align="center">
+<div align="center">
 
 # 🎫 FlowPass
 
@@ -483,4 +483,3 @@ Open Source — Built for physical event safety.
 <div align="center">
   <sub>Built with ❤️ for safer crowds everywhere</sub>
 </div>
-]]>
