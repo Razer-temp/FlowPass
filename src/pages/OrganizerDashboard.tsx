@@ -102,6 +102,9 @@ export default function OrganizerDashboard() {
 
     fetchInitialData();
 
+    // Fallback polling every 5s ensures data stays fresh even if WebSocket drops
+    const fallbackPoll = setInterval(fetchInitialData, 5000);
+
     // Real-time subscriptions
     const eventSub = supabase.channel(`event-${eventId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `id=eq.${eventId}` }, payload => {
@@ -114,7 +117,9 @@ export default function OrganizerDashboard() {
           }
           return newData;
         });
-      }).subscribe();
+      }).subscribe((status) => {
+        console.log('[Dashboard] events subscription:', status);
+      });
 
     const zonesSub = supabase.channel(`zones-${eventId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'zones', filter: `event_id=eq.${eventId}` }, payload => {
@@ -124,7 +129,9 @@ export default function OrganizerDashboard() {
           if (index !== -1) updated[index] = { ...current[index], ...payload.new };
           return updated;
         });
-      }).subscribe();
+      }).subscribe((status) => {
+        console.log('[Dashboard] zones subscription:', status);
+      });
 
     const passesSub = supabase.channel(`passes-${eventId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'passes', filter: `event_id=eq.${eventId}` }, payload => {
@@ -141,14 +148,19 @@ export default function OrganizerDashboard() {
           }
           return current;
         });
-      }).subscribe();
+      }).subscribe((status) => {
+        console.log('[Dashboard] passes subscription:', status);
+      });
 
     const logSub = supabase.channel(`logs-${eventId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log', filter: `event_id=eq.${eventId}` }, payload => {
         setLogs(current => [payload.new, ...current].slice(0, 10));
-      }).subscribe();
+      }).subscribe((status) => {
+        console.log('[Dashboard] logs subscription:', status);
+      });
 
     return () => {
+      clearInterval(fallbackPoll);
       supabase.removeChannel(eventSub);
       supabase.removeChannel(zonesSub);
       supabase.removeChannel(passesSub);

@@ -81,7 +81,6 @@ export default function GateStaffView() {
         }
 
         // Fetch all passes for fast offline/in-memory validation
-        // In production with 50k passes, we'd paginate or only fetch active ones.
         const { data: passesData } = await supabase.from('passes').select('*').eq('event_id', eventId);
         if (passesData) {
           const cache: Record<string, FlowPass> = {};
@@ -95,22 +94,24 @@ export default function GateStaffView() {
 
     fetchInitialData();
 
+    // Fallback polling every 5s ensures data stays fresh even if WebSocket drops
+    const fallbackPoll = setInterval(fetchInitialData, 5000);
+
     // Real-time Subscriptions
     const eventSub = supabase.channel(`gate-event-${eventId}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events', filter: `id=eq.${eventId}` }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `id=eq.${eventId}` }, payload => {
         setEvent((current: FlowEvent | null) => {
           const newData = { ...current, ...payload.new };
           const statuses = newData.gate_status || {};
-          const gateStatus = statuses[decodedGateId] || 'CLEAR';
-          if (gateStatus !== currentGateStatus) {
-            setCurrentGateStatus(gateStatus);
-          }
+          setCurrentGateStatus(statuses[decodedGateId] || 'CLEAR');
           return newData;
         });
-      }).subscribe();
+      }).subscribe((status) => {
+        console.log('[GateStaff] events subscription:', status);
+      });
 
     const zonesSub = supabase.channel(`gate-zones-${eventId}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'zones', filter: `event_id=eq.${eventId}` }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'zones', filter: `event_id=eq.${eventId}` }, payload => {
         setZones(current => {
           const updated = [...current];
           const index = updated.findIndex(z => z.id === payload.new.id);
@@ -120,16 +121,16 @@ export default function GateStaffView() {
             if (zoneIncludesGate) {
               updated[index] = { ...current[index], ...payload.new };
             } else {
-              // Remove zone if our gate was removed from it
               return updated.filter(z => z.id !== payload.new.id);
             }
           } else if (zoneIncludesGate) {
-            // Add zone back if it was previously missing and now includes our gate
             return [...updated, payload.new];
           }
           return updated;
         });
-      }).subscribe();
+      }).subscribe((status) => {
+        console.log('[GateStaff] zones subscription:', status);
+      });
 
     const passesSub = supabase.channel(`gate-passes-${eventId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'passes', filter: `event_id=eq.${eventId}` }, payload => {
@@ -144,9 +145,12 @@ export default function GateStaffView() {
           }
           return updated;
         });
-      }).subscribe();
+      }).subscribe((status) => {
+        console.log('[GateStaff] passes subscription:', status);
+      });
 
     return () => {
+      clearInterval(fallbackPoll);
       supabase.removeChannel(eventSub);
       supabase.removeChannel(zonesSub);
       supabase.removeChannel(passesSub);
@@ -346,17 +350,29 @@ export default function GateStaffView() {
                       } else if (rawValue.length > 30) {
                         // Likely a raw UUID
                         extractedId = rawValue.trim();
+                      } else if (rawValue.trim().length >= 4) {
+                        // Short code directly scanned
+                        extractedId = rawValue.trim();
                       }
 
                       if (extractedId) {
                         setIsProcessingScan(true);
                         // Brief delay for visual feedback
                         setTimeout(() => {
-                          const shortCode = extractedId.slice(-6).toUpperCase();
-                          setInputCode(shortCode);
-                          setShowScanner(false);
-                          setIsProcessingScan(false);
-                          handleValidate(undefined, shortCode);
+                          // Try direct match with full UUID first, then fall back to short code
+                          const fullIdPass = passesCache[extractedId];
+                          if (fullIdPass) {
+                            setInputCode(extractedId.slice(-6).toUpperCase());
+                            setShowScanner(false);
+                            setIsProcessingScan(false);
+                            handleValidate(undefined, extractedId.slice(-6).toUpperCase());
+                          } else {
+                            const shortCode = extractedId.slice(-6).toUpperCase();
+                            setInputCode(shortCode);
+                            setShowScanner(false);
+                            setIsProcessingScan(false);
+                            handleValidate(undefined, shortCode);
+                          }
                         }, 600);
                       }
                     }
@@ -365,12 +381,17 @@ export default function GateStaffView() {
                   constraints={{
                     facingMode: 'environment'
                   }}
+                  scanDelay={300}
                   onError={(err) => {
                     console.error('QR Scanner Error:', err);
                     setScannerError(err?.message || 'Failed to access camera');
                   }}
                   components={{
                     finder: true,
+                  }}
+                  styles={{
+                    container: { width: '100%', height: '100%' },
+                    video: { width: '100%', height: '100%', objectFit: 'cover' as const }
                   }}
                 />
                 

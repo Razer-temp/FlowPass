@@ -71,6 +71,9 @@ export default function PassView() {
 
     fetchInitialData();
 
+    // Fallback polling every 5s ensures data stays fresh even if WebSocket drops
+    const fallbackPoll = setInterval(fetchInitialData, 5000);
+
     // Real-time subscriptions
     const eventSub = supabase.channel(`pass-event-${passId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'events' }, payload => {
@@ -85,7 +88,9 @@ export default function PassView() {
           }
           return current;
         });
-      }).subscribe();
+      }).subscribe((status) => {
+        console.log('[PassView] events subscription:', status);
+      });
 
     const passSub = supabase.channel(`pass-${passId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'passes', filter: `id=eq.${passId}` }, payload => {
@@ -97,7 +102,9 @@ export default function PassView() {
           }
           return updatedPass;
         });
-      }).subscribe();
+      }).subscribe((status) => {
+        console.log('[PassView] pass subscription:', status);
+      });
 
     // We listen to zones because zone status changes (HOLD/ACTIVE) affect the pass
     const zoneSub = supabase.channel(`pass-zone-${passId}`)
@@ -106,14 +113,19 @@ export default function PassView() {
           if (current && current.id === payload.new.id) return { ...current, ...payload.new };
           return current;
         });
-      }).subscribe();
+      }).subscribe((status) => {
+        console.log('[PassView] zone subscription:', status);
+      });
 
     const annSub = supabase.channel(`pass-ann-${passId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, payload => {
         setAnnouncements(current => [payload.new, ...current]);
-      }).subscribe();
+      }).subscribe((status) => {
+        console.log('[PassView] announcements subscription:', status);
+      });
 
     return () => {
+      clearInterval(fallbackPoll);
       supabase.removeChannel(eventSub);
       supabase.removeChannel(passSub);
       supabase.removeChannel(zoneSub);

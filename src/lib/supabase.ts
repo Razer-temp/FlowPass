@@ -7,5 +7,10 @@ if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KE
   console.warn('Using production fallback credentials since environment variables were missing from build.');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  realtime: {
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
+});
