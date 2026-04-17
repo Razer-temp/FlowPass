@@ -4,8 +4,9 @@
  * Adds a client-side Google Translate widget to make announcements
  * and passes accessible in any language.
  *
- * The 'hidden' variant uses a Hard-Reset Engine to guarantee translation 
- * sync across devices without needing page reloads.
+ * For the 'hidden' Big Screen mode, this uses a robust Hard-Reload Engine,
+ * forcibly updating tracking cookies and automatically refreshing the screen
+ * when the target presentation language is dynamically swapped over WebSockets.
  */
 
 import { useEffect, useRef } from 'react';
@@ -18,24 +19,11 @@ interface GoogleTranslateProps {
 
 export default function GoogleTranslate({ variant = 'visible', targetLanguage = 'en' }: GoogleTranslateProps): React.JSX.Element {
   const isInitialized = useRef(false);
+  const prevLang = useRef(targetLanguage);
 
-  // Core bootstrapper and Deep-Wipe engine
   const injectGoogleScript = () => {
-    // 1. Wipe existing scripts
-    const existing = document.getElementById('google-translate-script');
-    if (existing) existing.remove();
+    if (document.getElementById('google-translate-script')) return;
 
-    // 2. Wipe UI elements injected by Google
-    const existingUi = document.querySelectorAll('.skiptranslate, iframe[name="goog_te_frame"]');
-    existingUi.forEach(el => el.remove());
-
-    // 3. Clear the main target container recursively
-    const container = document.getElementById('google_translate_element');
-    if (container) container.innerHTML = '';
-
-    isInitialized.current = false;
-
-    // 4. Set up global init function anew
     window.googleTranslateElementInit = () => {
       if (window.google && window.google.translate) {
         new window.google.translate.TranslateElement(
@@ -50,7 +38,6 @@ export default function GoogleTranslate({ variant = 'visible', targetLanguage = 
       }
     };
 
-    // 5. Hard inject
     const addScript = document.createElement('script');
     addScript.id = 'google-translate-script';
     addScript.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
@@ -58,50 +45,35 @@ export default function GoogleTranslate({ variant = 'visible', targetLanguage = 
     document.body.appendChild(addScript);
   };
 
-  // Initial load for normal (visible) widgets
+  // 1. One-Time Native Injection
   useEffect(() => {
-    if (variant === 'visible') {
-      if (!isInitialized.current && !document.getElementById('google-translate-script')) {
-        injectGoogleScript();
-      }
+    if (!isInitialized.current) {
+      injectGoogleScript();
     }
-  }, [variant]);
+  }, []);
 
-  // Remote Orchestration (Ghost Mode) Hard-Reset Engine
+  // 2. Fallback Hard-Reload Engine (Orchestrates remote sync natively)
   useEffect(() => {
     if (variant !== 'hidden') return;
-
-    const domain = window.location.hostname;
     
-    if (targetLanguage === 'en') {
-      // 1. Clear cookies to ensure it stays English on a hard reload
-      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=${domain}; path=/;`;
+    // Check if the external targetLanguage has actually changed since we mounted
+    if (prevLang.current !== targetLanguage) {
+      const domain = window.location.hostname;
       
-      // 2. Trigger the Google-injected Restore button to revert the DOM natively
-      const iframe = document.querySelector('iframe.goog-te-banner-frame') as HTMLIFrameElement;
-      if (iframe && iframe.contentWindow) {
-        // Attempt to find the restore button inside Google's hidden iframe
-        const restoreBtn = iframe.contentWindow.document.getElementById(':1.restore') as HTMLElement;
-        if (restoreBtn) {
-          restoreBtn.click();
-        }
+      if (targetLanguage === 'en') {
+        // Clear cookies to restore original English default
+        document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=${domain}; path=/;`;
+      } else {
+        // Enforce the new target language context
+        document.cookie = `googtrans=/en/${targetLanguage}; path=/;`;
+        document.cookie = `googtrans=/en/${targetLanguage}; domain=${domain}; path=/;`;
       }
-      
-      // We do NOT wipe the script for English, because the restoreBtn click instantly reverts the DOM!
-      return;
-    } 
-    
-    // For all other languages, force native Google translation context
-    document.cookie = `googtrans=/en/${targetLanguage}; path=/;`;
-    document.cookie = `googtrans=/en/${targetLanguage}; domain=${domain}; path=/;`;
 
-    // Wipe cached Google object to force a native reload from the new cookie state
-    delete (window as any).google;
-    
-    // Inject and run
-    injectGoogleScript();
-
+      // Hard reload the display to command Google's strict init listener to parse
+      // the new cookies natively, ensuring robust zero-fault translation without UI hacks.
+      window.location.reload();
+    }
   }, [targetLanguage, variant]);
 
   return (
