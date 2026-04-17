@@ -4,7 +4,8 @@
  * Adds a client-side Google Translate widget to make announcements
  * and passes accessible in any language.
  *
- * Google Service: Google Translate API (Client-side Widget)
+ * The 'hidden' variant uses a Hard-Reset Engine to guarantee translation 
+ * sync across devices without needing page reloads.
  */
 
 import { useEffect, useRef } from 'react';
@@ -15,28 +16,33 @@ interface GoogleTranslateProps {
   targetLanguage?: string;
 }
 
-/**
- * Renders the Google Translate inline widget.
- * Lazily loads the external script on first mount and prevents
- * duplicate injection during React Strict Mode / hot reloads.
- */
 export default function GoogleTranslate({ variant = 'visible', targetLanguage = 'en' }: GoogleTranslateProps): React.JSX.Element {
   const isInitialized = useRef(false);
 
-  useEffect(() => {
-    // Prevent duplicate scripts/widgets in React Strict Mode or hot reloads
-    if (document.getElementById('google-translate-script')) {
-      isInitialized.current = true;
-      return;
-    }
+  // Core bootstrapper and Deep-Wipe engine
+  const injectGoogleScript = () => {
+    // 1. Wipe existing scripts
+    const existing = document.getElementById('google-translate-script');
+    if (existing) existing.remove();
 
+    // 2. Wipe UI elements injected by Google
+    const existingUi = document.querySelectorAll('.skiptranslate, iframe[name="goog_te_frame"]');
+    existingUi.forEach(el => el.remove());
+
+    // 3. Clear the main target container recursively
+    const container = document.getElementById('google_translate_element');
+    if (container) container.innerHTML = '';
+
+    isInitialized.current = false;
+
+    // 4. Set up global init function anew
     window.googleTranslateElementInit = () => {
       if (window.google && window.google.translate) {
         new window.google.translate.TranslateElement(
           {
             pageLanguage: 'en',
             layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
-            autoDisplay: false,
+            autoDisplay: true,
           },
           'google_translate_element'
         );
@@ -44,80 +50,45 @@ export default function GoogleTranslate({ variant = 'visible', targetLanguage = 
       }
     };
 
+    // 5. Hard inject
     const addScript = document.createElement('script');
     addScript.id = 'google-translate-script';
     addScript.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
     addScript.async = true;
     document.body.appendChild(addScript);
+  };
 
-  }, []);
+  // Initial load for normal (visible) widgets
+  useEffect(() => {
+    if (variant === 'visible') {
+      if (!isInitialized.current && !document.getElementById('google-translate-script')) {
+        injectGoogleScript();
+      }
+    }
+  }, [variant]);
 
-  // Effect to programmatically change translations when targetLanguage prop changes
+  // Remote Orchestration (Ghost Mode) Hard-Reset Engine
   useEffect(() => {
     if (variant !== 'hidden') return;
+
+    const domain = window.location.hostname;
     
-    let attempts = 0;
+    if (targetLanguage === 'en') {
+      // Clear cookies to restore original
+      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=${domain}; path=/;`;
+    } else {
+      // Force native Google translation context
+      document.cookie = `googtrans=/en/${targetLanguage}; path=/;`;
+      document.cookie = `googtrans=/en/${targetLanguage}; domain=${domain}; path=/;`;
+    }
+
+    // Wipe cached Google object to force a native reload from the new cookie state
+    delete (window as any).google;
     
-    const triggerTranslation = () => {
-      const select = document.querySelector('.goog-te-combo') as HTMLSelectElement | null;
-      if (!select) return false;
+    // Inject and run
+    injectGoogleScript();
 
-      // Handle restoring to original language (English)
-      if (targetLanguage === 'en') {
-        const resetCookie = () => {
-          document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-          document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=' + window.location.hostname + '; path=/;';
-        };
-        // Some Google widgets have an empty string value for the default language.
-        if (select.value !== '') {
-          select.value = '';
-          select.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-        }
-        resetCookie();
-        
-        // Also look for the iframe restore button if it exists
-        const iframe = document.querySelector('iframe.goog-te-banner-frame') as HTMLIFrameElement;
-        if (iframe && iframe.contentWindow) {
-          const restoreBtn = iframe.contentWindow.document.getElementById(':1.restore') as HTMLElement;
-          if (restoreBtn) restoreBtn.click();
-        }
-        
-        return true;
-      }
-
-      // Handle translation to another language
-      if (select.value !== targetLanguage) {
-        // Find if the option actually exists
-        const optionExists = Array.from(select.options).some(opt => opt.value === targetLanguage);
-        if (optionExists) {
-          select.value = targetLanguage;
-          
-          // Force cookie update natively to ensure Google remembers and applies
-          document.cookie = `googtrans=/en/${targetLanguage}; path=/;`;
-          document.cookie = `googtrans=/en/${targetLanguage}; domain=${window.location.hostname}; path=/;`;
-          
-          select.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-          return true; // Successfully triggered
-        }
-      } else {
-        return true; // Already on the correct language
-      }
-      return false; // Select exists but option doesn't yet or some other issue
-    };
-
-    // Google widget takes some time to inject the DOM. Polling helps ensure it applies.
-    const attemptTrigger = () => {
-      attempts++;
-      const success = triggerTranslation();
-      if (success || attempts > 20) {
-        clearInterval(interval);
-      }
-    };
-
-    const interval = setInterval(attemptTrigger, 500);
-    attemptTrigger(); // Try immediately
-
-    return () => clearInterval(interval);
   }, [targetLanguage, variant]);
 
   return (
