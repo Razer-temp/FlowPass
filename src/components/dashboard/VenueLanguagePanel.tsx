@@ -15,6 +15,7 @@ const LANGUAGES = [
   { code: 'it', name: 'Italiano', flag: '🇮🇹' },
   { code: 'ja', name: '日本語', flag: '🇯🇵' },
   { code: 'zh-CN', name: '中文', flag: '🇨🇳' },
+  { code: 'hi', name: 'हिन्दी', flag: '🇮🇳' },
 ];
 
 export default function VenueLanguagePanel({ eventId, gateStatus }: VenueLanguagePanelProps) {
