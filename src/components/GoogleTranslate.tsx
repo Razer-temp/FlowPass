@@ -56,25 +56,68 @@ export default function GoogleTranslate({ variant = 'visible', targetLanguage = 
   useEffect(() => {
     if (variant !== 'hidden') return;
     
+    let attempts = 0;
+    
     const triggerTranslation = () => {
       const select = document.querySelector('.goog-te-combo') as HTMLSelectElement | null;
-      if (select) {
-        if (select.value !== targetLanguage) {
-          select.value = targetLanguage;
-          select.dispatchEvent(new Event('change'));
+      if (!select) return false;
+
+      // Handle restoring to original language (English)
+      if (targetLanguage === 'en') {
+        const resetCookie = () => {
+          document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+          document.cookie = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=' + window.location.hostname + '; path=/;';
+        };
+        // Some Google widgets have an empty string value for the default language.
+        if (select.value !== '') {
+          select.value = '';
+          select.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
         }
+        resetCookie();
+        
+        // Also look for the iframe restore button if it exists
+        const iframe = document.querySelector('iframe.goog-te-banner-frame') as HTMLIFrameElement;
+        if (iframe && iframe.contentWindow) {
+          const restoreBtn = iframe.contentWindow.document.getElementById(':1.restore') as HTMLElement;
+          if (restoreBtn) restoreBtn.click();
+        }
+        
+        return true;
+      }
+
+      // Handle translation to another language
+      if (select.value !== targetLanguage) {
+        // Find if the option actually exists
+        const optionExists = Array.from(select.options).some(opt => opt.value === targetLanguage);
+        if (optionExists) {
+          select.value = targetLanguage;
+          
+          // Force cookie update natively to ensure Google remembers and applies
+          document.cookie = `googtrans=/en/${targetLanguage}; path=/;`;
+          document.cookie = `googtrans=/en/${targetLanguage}; domain=${window.location.hostname}; path=/;`;
+          
+          select.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+          return true; // Successfully triggered
+        }
+      } else {
+        return true; // Already on the correct language
+      }
+      return false; // Select exists but option doesn't yet or some other issue
+    };
+
+    // Google widget takes some time to inject the DOM. Polling helps ensure it applies.
+    const attemptTrigger = () => {
+      attempts++;
+      const success = triggerTranslation();
+      if (success || attempts > 20) {
+        clearInterval(interval);
       }
     };
 
-    // Google widget takes some time to inject the DOM. Polling or timeout helps ensure it applies.
-    triggerTranslation();
-    const interval = setInterval(triggerTranslation, 500);
-    const timeout = setTimeout(() => clearInterval(interval), 5000);
+    const interval = setInterval(attemptTrigger, 500);
+    attemptTrigger(); // Try immediately
 
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
+    return () => clearInterval(interval);
   }, [targetLanguage, variant]);
 
   return (
