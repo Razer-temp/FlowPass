@@ -82,7 +82,8 @@ export default function BigScreen() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'zones', filter: `event_id=eq.${eventId}` }, payload => {
         setZones(current => {
           const updated = [...current];
-          const index = updated.findIndex(z => z.id === payload.new.id);
+          const newZone = payload.new as any;
+          const index = updated.findIndex(z => z.id === newZone.id);
           if (index !== -1) {
             updated[index] = { ...current[index], ...payload.new };
           }
@@ -93,11 +94,13 @@ export default function BigScreen() {
     const passesSub = supabase.channel(`screen-passes-${eventId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'passes', filter: `event_id=eq.${eventId}` }, payload => {
         setPasses(current => {
-          if (payload.eventType === 'INSERT') return [...current, payload.new];
-          if (payload.eventType === 'UPDATE') {
+          const passEvent = payload.eventType;
+          const newPass = payload.new as any;
+          if (passEvent === 'INSERT') return [...current, newPass];
+          if (passEvent === 'UPDATE') {
             const updated = [...current];
-            const index = updated.findIndex(p => p.id === payload.new.id);
-            if (index !== -1) updated[index] = { ...current[index], ...payload.new };
+            const index = updated.findIndex(p => p.id === newPass.id);
+            if (index !== -1) updated[index] = { ...current[index], ...newPass };
             return updated;
           }
           return current;

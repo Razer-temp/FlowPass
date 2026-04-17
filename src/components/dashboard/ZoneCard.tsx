@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { PauseCircle, PlayCircle, Clock, Edit2, Unlock, CheckCircle2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 interface ZoneCardProps {
   zone: any;
   index: number;
+  key?: React.Key;
 }
 
 export default function ZoneCard({ zone, index }: ZoneCardProps) {

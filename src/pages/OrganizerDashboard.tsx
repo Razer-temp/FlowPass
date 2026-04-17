@@ -126,8 +126,9 @@ export default function OrganizerDashboard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'zones', filter: `event_id=eq.${eventId}` }, payload => {
         setZones(current => {
           const updated = [...current];
-          const index = updated.findIndex(z => z.id === payload.new.id);
-          if (index !== -1) updated[index] = { ...current[index], ...payload.new };
+          const newZone = payload.new as any;
+          const index = updated.findIndex(z => z.id === newZone.id);
+          if (index !== -1) updated[index] = { ...current[index], ...newZone };
           return updated;
         });
       }).subscribe((status) => {

@@ -16,8 +16,12 @@ interface State {
  * recovery UI. Wraps the entire app in main.tsx.
  */
 export default class ErrorBoundary extends Component<Props, State> {
+  public state: State;
+  public props: Props;
+
   constructor(props: Props) {
     super(props);
+    this.props = props;
     this.state = { hasError: false, error: null };
   }
 

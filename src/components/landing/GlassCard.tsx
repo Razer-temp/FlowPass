@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { motion, HTMLMotionProps } from 'framer-motion';
 
 interface GlassCardProps {
   icon: React.ReactNode;

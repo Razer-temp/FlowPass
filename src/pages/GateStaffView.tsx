@@ -115,17 +115,18 @@ export default function GateStaffView() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'zones', filter: `event_id=eq.${eventId}` }, payload => {
         setZones(current => {
           const updated = [...current];
-          const index = updated.findIndex(z => z.id === payload.new.id);
-          const zoneIncludesGate = payload.new.gates && payload.new.gates.includes(decodedGateId);
+          const newZone = payload.new as any;
+          const index = updated.findIndex(z => z.id === newZone.id);
+          const zoneIncludesGate = newZone.gates && newZone.gates.includes(decodedGateId);
 
           if (index !== -1) {
             if (zoneIncludesGate) {
-              updated[index] = { ...current[index], ...payload.new };
+              updated[index] = { ...current[index], ...newZone };
             } else {
-              return updated.filter(z => z.id !== payload.new.id);
+              return updated.filter(z => z.id !== newZone.id);
             }
           } else if (zoneIncludesGate) {
-            return [...updated, payload.new];
+            return [...updated, newZone];
           }
           return updated;
         });
@@ -137,12 +138,16 @@ export default function GateStaffView() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'passes', filter: `event_id=eq.${eventId}` }, payload => {
         setPassesCache(current => {
           const updated = { ...current };
-          if (payload.eventType === 'DELETE') {
-            delete updated[payload.old.id];
-          } else if (payload.eventType === 'UPDATE') {
-            updated[payload.new.id] = { ...updated[payload.new.id], ...payload.new };
+          const eventType = payload.eventType;
+          const newPass = payload.new as any;
+          const oldPass = payload.old as any;
+          
+          if (eventType === 'DELETE') {
+            delete updated[oldPass.id];
+          } else if (eventType === 'UPDATE') {
+            updated[newPass.id] = { ...updated[newPass.id], ...newPass };
           } else {
-            updated[payload.new.id] = payload.new;
+            updated[newPass.id] = newPass as FlowPass;
           }
           return updated;
         });
