@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 
 interface QrScannerProps {
@@ -8,12 +8,12 @@ interface QrScannerProps {
 
 export default function QrScanner({ onScan, onError }: QrScannerProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [isStarted, setIsStarted] = useState(false);
+  const hasScannedRef = useRef(false);
   const onScanRef = useRef(onScan);
   const onErrorRef = useRef(onError);
 
-  // Keep refs in sync so the scanner callback always uses the latest
+  // Keep refs in sync
   useEffect(() => {
     onScanRef.current = onScan;
     onErrorRef.current = onError;
@@ -22,10 +22,11 @@ export default function QrScanner({ onScan, onError }: QrScannerProps) {
   useEffect(() => {
     const containerId = 'flowpass-qr-reader';
     let mounted = true;
+    let scanner: Html5Qrcode | null = null;
 
     const startScanner = async () => {
       try {
-        const scanner = new Html5Qrcode(containerId, { verbose: false });
+        scanner = new Html5Qrcode(containerId, { verbose: false });
         scannerRef.current = scanner;
 
         await scanner.start(
@@ -36,12 +37,19 @@ export default function QrScanner({ onScan, onError }: QrScannerProps) {
             aspectRatio: 1.0,
           },
           (decodedText) => {
-            if (mounted) {
-              onScanRef.current(decodedText);
+            // CRITICAL: Only fire once per scan session
+            if (!mounted || hasScannedRef.current) return;
+            hasScannedRef.current = true;
+
+            // Stop scanning immediately to prevent further callbacks
+            if (scanner) {
+              scanner.pause(true);
             }
+
+            onScanRef.current(decodedText);
           },
           () => {
-            // QR code not found in this frame — this is normal, ignore
+            // QR code not found in this frame — normal, ignore
           }
         );
 
@@ -60,12 +68,21 @@ export default function QrScanner({ onScan, onError }: QrScannerProps) {
 
     return () => {
       mounted = false;
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {
-          // Scanner may already be stopped
-        });
-        scannerRef.current.clear();
-        scannerRef.current = null;
+      const s = scannerRef.current;
+      scannerRef.current = null;
+      
+      if (s) {
+        const state = s.getState();
+        // Only stop if scanner is actively scanning or paused
+        if (state === 2 /* SCANNING */ || state === 3 /* PAUSED */) {
+          s.stop().then(() => {
+            try { s.clear(); } catch (_) { /* ignore */ }
+          }).catch(() => {
+            try { s.clear(); } catch (_) { /* ignore */ }
+          });
+        } else {
+          try { s.clear(); } catch (_) { /* ignore */ }
+        }
       }
     };
   }, []);
@@ -74,8 +91,8 @@ export default function QrScanner({ onScan, onError }: QrScannerProps) {
     <div className="w-full h-full relative">
       <div
         id="flowpass-qr-reader"
-        ref={containerRef}
         className="w-full h-full"
+        style={{ minHeight: '300px' }}
       />
       {!isStarted && (
         <div className="absolute inset-0 flex items-center justify-center bg-black">

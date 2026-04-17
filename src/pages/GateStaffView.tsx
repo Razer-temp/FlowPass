@@ -355,21 +355,23 @@ export default function GateStaffView() {
 
                     if (extractedId) {
                       setIsProcessingScan(true);
+                      
+                      // Step 1: Close scanner first (let it unmount cleanly)
+                      setShowScanner(false);
+                      
+                      // Step 2: Validate AFTER scanner has unmounted
                       setTimeout(() => {
-                        const fullIdPass = passesCache[extractedId];
-                        if (fullIdPass) {
-                          setInputCode(extractedId.slice(-6).toUpperCase());
-                          setShowScanner(false);
-                          setIsProcessingScan(false);
-                          handleValidate(undefined, extractedId.slice(-6).toUpperCase());
-                        } else {
+                        try {
+                          const fullIdPass = passesCache[extractedId];
                           const shortCode = extractedId.slice(-6).toUpperCase();
                           setInputCode(shortCode);
-                          setShowScanner(false);
                           setIsProcessingScan(false);
                           handleValidate(undefined, shortCode);
+                        } catch (err) {
+                          console.error('Validation error:', err);
+                          setIsProcessingScan(false);
                         }
-                      }, 400);
+                      }, 500);
                     }
                   }}
                   onError={(errMsg) => {
@@ -418,20 +420,20 @@ export default function GateStaffView() {
       {/* Validation Result Overlay */}
       {validationResult && (
         <div className="fixed inset-0 z-40 bg-background flex flex-col">
-          {validationResult.type === 'VALID' && (
+          {validationResult.type === 'VALID' && validationResult.pass && (
             <div className="flex-1 bg-[#0A2E1A] p-6 flex flex-col">
               <div className="flex items-center gap-3 text-go font-bold text-2xl mb-8 mt-4">
                 <CheckCircle2 className="w-8 h-8" /> LET THROUGH
               </div>
               <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8">
                 <h2 className="text-4xl font-heading font-bold mb-2 uppercase">{validationResult.pass.attendee_name}</h2>
-                <p className="text-xl text-dim mb-6">{validationResult.zone.name} · {validationResult.pass.gate_id} · {validationResult.pass.seat_number}</p>
+                <p className="text-xl text-dim mb-6">{validationResult.zone?.name || 'Unknown Zone'} · {validationResult.pass.gate_id} · {validationResult.pass.seat_number}</p>
                 <div className="text-sm text-dim border-t border-white/10 pt-4">
                   Pass: ...{validationResult.pass.id.slice(-6).toUpperCase()}
                 </div>
               </div>
               <div className="mt-auto space-y-4">
-                <button onClick={() => confirmPass(validationResult.pass.id)} className="w-full py-6 bg-go text-background font-black text-2xl rounded-2xl active:scale-95 transition-transform">
+                <button onClick={() => confirmPass(validationResult.pass!.id)} className="w-full py-6 bg-go text-background font-black text-2xl rounded-2xl active:scale-95 transition-transform">
                   ✅ Confirm — Mark Passed
                 </button>
                 <button onClick={() => setValidationResult(null)} className="w-full py-4 bg-surface border border-white/10 font-bold text-xl rounded-2xl">
@@ -441,7 +443,7 @@ export default function GateStaffView() {
             </div>
           )}
 
-          {validationResult.type === 'NOT_OPEN' && (
+          {validationResult.type === 'NOT_OPEN' && validationResult.pass && (
             <div className="flex-1 bg-[#2E0A0A] p-6 flex flex-col">
               <div className="flex items-center gap-3 text-stop font-bold text-2xl mb-8 mt-4">
                 <XCircle className="w-8 h-8" /> ASK TO WAIT
@@ -471,7 +473,7 @@ export default function GateStaffView() {
             </div>
           )}
 
-          {validationResult.type === 'USED' && (
+          {validationResult.type === 'USED' && validationResult.pass && (
             <div className="flex-1 bg-[#2E1A0A] p-6 flex flex-col">
               <div className="flex items-center gap-3 text-amber-500 font-bold text-2xl mb-8 mt-4">
                 <AlertTriangle className="w-8 h-8" /> ALREADY USED
@@ -482,7 +484,7 @@ export default function GateStaffView() {
                 
                 <div className="bg-black/30 rounded-xl p-4 mb-4">
                   <p className="text-lg text-amber-500 font-bold">This pass was already used:</p>
-                  <p className="text-xl mt-1">{validationResult.pass.gate_id} — {new Date(validationResult.pass.exited_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="text-xl mt-1">{validationResult.pass.gate_id} — {validationResult.pass.exited_at ? new Date(validationResult.pass.exited_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Unknown time'}</p>
                 </div>
 
                 <div className="bg-amber-500/20 border border-amber-500/30 rounded-xl p-4">
@@ -498,7 +500,7 @@ export default function GateStaffView() {
             </div>
           )}
 
-          {validationResult.type === 'WRONG_GATE' && (
+          {validationResult.type === 'WRONG_GATE' && validationResult.pass && (
             <div className="flex-1 bg-[#2E1A0A] p-6 flex flex-col">
               <div className="flex items-center gap-3 text-amber-500 font-bold text-2xl mb-8 mt-4">
                 <AlertTriangle className="w-8 h-8" /> WRONG GATE
@@ -518,7 +520,7 @@ export default function GateStaffView() {
                 </div>
               </div>
               <div className="mt-auto space-y-4">
-                <button onClick={() => confirmPass(validationResult.pass.id, true)} className="w-full py-4 bg-surface border border-amber-500/50 text-amber-500 font-bold text-lg rounded-2xl active:scale-95 transition-transform">
+                <button onClick={() => confirmPass(validationResult.pass!.id, true)} className="w-full py-4 bg-surface border border-amber-500/50 text-amber-500 font-bold text-lg rounded-2xl active:scale-95 transition-transform">
                   ✅ Let Through Anyway (Override)
                 </button>
                 <button onClick={() => setValidationResult(null)} className="w-full py-6 bg-amber-500 text-background font-black text-xl rounded-2xl active:scale-95 transition-transform">
