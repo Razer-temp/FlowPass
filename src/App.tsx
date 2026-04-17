@@ -1,3 +1,12 @@
+/**
+ * FlowPass — Application Root
+ *
+ * Provides top-level routing, conditional Navbar/Footer visibility,
+ * and Google Analytics page-view tracking. The `AppContent` helper
+ * inspects the current path to decide whether chrome (nav + footer)
+ * should be hidden (e.g. on fullscreen BigScreen or PassView pages).
+ */
+
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import LandingPage from './pages/LandingPage';

@@ -1,3 +1,11 @@
+/**
+ * FlowPass — ChaosVsCalm Landing Component
+ *
+ * Interactive before/after animation comparing uncoordinated
+ * crowd rushes vs. FlowPass-managed wave-based dispersal.
+ * Dots animate between "chaos" and "calm" layouts on toggle.
+ */
+
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';

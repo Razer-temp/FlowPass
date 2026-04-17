@@ -1,20 +1,32 @@
+/**
+ * FlowPass — AnnouncementComposer Dashboard Component
+ *
+ * Provides a rich broadcast composer for organisers to send
+ * announcements to all or specific zones. Supports pre-built
+ * templates and AI-powered announcement generation via Gemini.
+ */
+
 import { useState, useEffect } from 'react';
 import { Megaphone, Send, Sparkles, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { generateSmartAnnouncement, isGeminiAvailable } from '../../lib/gemini';
 import type { AnnouncementContext } from '../../lib/gemini';
 import { trackEvent } from '../../lib/analytics';
+import type { FlowZone, FlowAnnouncementRow } from '../../types';
+import { ANNOUNCEMENT_MAX_LENGTH, RECENT_ANNOUNCEMENTS_LIMIT } from '../../lib/constants';
 
 interface AnnouncementComposerProps {
+  /** The event to compose announcements for */
   eventId: string;
-  zones: any[];
-  /** Optional: event name for AI context */
+  /** Available zones (used for target selector and AI context) */
+  zones: FlowZone[];
+  /** Event name for AI context */
   eventName?: string;
-  /** Optional: venue name for AI context */
+  /** Venue name for AI context */
   venue?: string;
-  /** Optional: total crowd for AI context */
+  /** Total crowd for AI context */
   totalCrowd?: number;
-  /** Optional: exited count for AI context */
+  /** Exited count for AI context */
   exitedCount?: number;
 }
 
@@ -32,7 +44,7 @@ export default function AnnouncementComposer({ eventId, zones, eventName, venue,
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiTopic, setAiTopic] = useState('');
   const [showAiInput, setShowAiInput] = useState(false);
-  const [recentAnnouncements, setRecentAnnouncements] = useState<any[]>([]);
+  const [recentAnnouncements, setRecentAnnouncements] = useState<FlowAnnouncementRow[]>([]);
 
   const geminiReady = isGeminiAvailable();
 
@@ -44,7 +56,7 @@ export default function AnnouncementComposer({ eventId, zones, eventName, venue,
         .select('*')
         .eq('event_id', eventId)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(RECENT_ANNOUNCEMENTS_LIMIT);
       
       if (data) setRecentAnnouncements(data);
     };
@@ -54,13 +66,14 @@ export default function AnnouncementComposer({ eventId, zones, eventName, venue,
     // Subscribe to new announcements
     const sub = supabase.channel(`announcements-${eventId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements', filter: `event_id=eq.${eventId}` }, payload => {
-        setRecentAnnouncements(current => [payload.new, ...current].slice(0, 5));
+        setRecentAnnouncements(current => [payload.new as FlowAnnouncementRow, ...current].slice(0, RECENT_ANNOUNCEMENTS_LIMIT));
       }).subscribe();
 
     return () => { supabase.removeChannel(sub); };
   }, [eventId]);
 
-  const handleSend = async () => {
+  /** Broadcasts the composed message to selected audience */
+  const handleSend = async (): Promise<void> => {
     if (!message.trim()) return;
     setIsSending(true);
 
@@ -89,7 +102,7 @@ export default function AnnouncementComposer({ eventId, zones, eventName, venue,
    * Google Gemini AI: Generate a context-aware announcement
    * Uses live event data to craft relevant, clear announcements
    */
-  const handleAIGenerate = async () => {
+  const handleAIGenerate = async (): Promise<void> => {
     setIsGenerating(true);
 
     try {
@@ -138,10 +151,10 @@ export default function AnnouncementComposer({ eventId, zones, eventName, venue,
           placeholder="Type your message..."
           aria-label="Announcement message"
           className="w-full bg-background border border-white/10 rounded-xl p-4 text-white placeholder:text-dim focus:outline-none focus:border-blue-500 resize-none h-24 mb-2"
-          maxLength={160}
+          maxLength={ANNOUNCEMENT_MAX_LENGTH}
         />
         <div className="flex justify-between items-center text-xs text-dim mb-4">
-          <span>{message.length} / 160 characters</span>
+          <span>{message.length} / {ANNOUNCEMENT_MAX_LENGTH} characters</span>
           {isGenerating && (
             <span className="flex items-center gap-1 text-purple-400">
               <Loader2 className="w-3 h-3 animate-spin" /> Gemini AI thinking...
@@ -246,7 +259,7 @@ export default function AnnouncementComposer({ eventId, zones, eventName, venue,
                   <Megaphone className="w-3 h-3" />
                   <span>Sent to {ann.target_zone === 'ALL' ? 'All' : 'Specific Zone'}</span>
                   <span>·</span>
-                  <span>{new Date(ann.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span>{ann.created_at ? new Date(ann.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}</span>
                 </div>
                 <p className="text-sm">{ann.message}</p>
               </div>

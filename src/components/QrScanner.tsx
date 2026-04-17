@@ -1,8 +1,19 @@
+/**
+ * FlowPass — QR Code Scanner Component
+ *
+ * Wraps the html5-qrcode library to provide camera-based QR code
+ * scanning for gate staff. Uses the rear camera by default and
+ * prevents duplicate scan callbacks via a ref guard.
+ */
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { QR_STATE_SCANNING, QR_STATE_PAUSED } from '../lib/constants';
 
 interface QrScannerProps {
+  /** Callback fired when a QR code is successfully decoded */
   onScan: (decodedText: string) => void;
+  /** Callback fired when the scanner encounters a camera error */
   onError?: (error: string) => void;
 }
 
@@ -13,79 +24,78 @@ export default function QrScanner({ onScan, onError }: QrScannerProps) {
   const onScanRef = useRef(onScan);
   const onErrorRef = useRef(onError);
 
-  // Keep refs in sync
+  // Keep refs in sync with latest props
   useEffect(() => {
     onScanRef.current = onScan;
     onErrorRef.current = onError;
   }, [onScan, onError]);
 
+  // We need useCallback to satisfy the exhaustive-deps lint rule but the
+  // scanner initialisation intentionally runs only once on mount.
+  const startScanner = useCallback(async (containerId: string, mounted: { value: boolean }) => {
+    try {
+      const scanner = new Html5Qrcode(containerId, { verbose: false });
+      scannerRef.current = scanner;
+
+      await scanner.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+        },
+        (decodedText) => {
+          // CRITICAL: Only fire once per scan session
+          if (!mounted.value || hasScannedRef.current) return;
+          hasScannedRef.current = true;
+
+          // Stop scanning immediately to prevent further callbacks
+          if (scanner) {
+            scanner.pause(true);
+          }
+
+          onScanRef.current(decodedText);
+        },
+        () => {
+          // QR code not found in this frame — normal, ignore
+        }
+      );
+
+      if (mounted.value) setIsStarted(true);
+    } catch (err: unknown) {
+      console.error('[QrScanner] Start error:', err);
+      if (mounted.value && onErrorRef.current) {
+        const message = err instanceof Error ? err.message : String(err);
+        onErrorRef.current(message || 'Failed to start camera');
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const containerId = 'flowpass-qr-reader';
-    let mounted = true;
-    let scanner: Html5Qrcode | null = null;
+    const mounted = { value: true };
 
-    const startScanner = async () => {
-      try {
-        scanner = new Html5Qrcode(containerId, { verbose: false });
-        scannerRef.current = scanner;
-
-        await scanner.start(
-          { facingMode: 'environment' },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
-          },
-          (decodedText) => {
-            // CRITICAL: Only fire once per scan session
-            if (!mounted || hasScannedRef.current) return;
-            hasScannedRef.current = true;
-
-            // Stop scanning immediately to prevent further callbacks
-            if (scanner) {
-              scanner.pause(true);
-            }
-
-            onScanRef.current(decodedText);
-          },
-          () => {
-            // QR code not found in this frame — normal, ignore
-          }
-        );
-
-        if (mounted) setIsStarted(true);
-      } catch (err: any) {
-        console.error('QR Scanner start error:', err);
-        if (mounted && onErrorRef.current) {
-          onErrorRef.current(
-            typeof err === 'string' ? err : err?.message || 'Failed to start camera'
-          );
-        }
-      }
-    };
-
-    startScanner();
+    startScanner(containerId, mounted);
 
     return () => {
-      mounted = false;
+      mounted.value = false;
       const s = scannerRef.current;
       scannerRef.current = null;
       
       if (s) {
         const state = s.getState();
-        // Only stop if scanner is actively scanning or paused
-        if (state === 2 /* SCANNING */ || state === 3 /* PAUSED */) {
+        if (state === QR_STATE_SCANNING || state === QR_STATE_PAUSED) {
           s.stop().then(() => {
-            try { s.clear(); } catch (_) { /* ignore */ }
+            try { s.clear(); } catch { /* ignore */ }
           }).catch(() => {
-            try { s.clear(); } catch (_) { /* ignore */ }
+            try { s.clear(); } catch { /* ignore */ }
           });
         } else {
-          try { s.clear(); } catch (_) { /* ignore */ }
+          try { s.clear(); } catch { /* ignore */ }
         }
       }
     };
-  }, []);
+  }, [startScanner]);
 
   return (
     <div className="w-full h-full relative">

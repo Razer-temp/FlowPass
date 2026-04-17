@@ -1,15 +1,25 @@
+/**
+ * FlowPass — Organiser Dashboard
+ *
+ * The central command centre for event organisers. Displays live
+ * zone status, gate conditions, pass counts, an announcement
+ * composer, activity log, and AI advisor. All data is kept in
+ * sync via Supabase realtime subscriptions with a 5-second
+ * polling fallback.
+ */
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import type { FlowEvent, FlowZone, FlowPass, FlowActivityLog, GateDisplay } from '../types';
 import { 
   Megaphone, Unlock, PauseCircle, MonitorPlay, 
-  Activity, Users, CheckCircle2, AlertTriangle, PlayCircle, Database, PowerOff, ShieldX,
+  AlertTriangle, PlayCircle, Database, PowerOff, ShieldX,
   LayoutGrid, Radio, DoorOpen, ScrollText
 } from 'lucide-react';
 import useIsMobile from '../hooks/useIsMobile';
-import { AnimatePresence } from 'motion/react';
+import { REALTIME_POLL_INTERVAL_MS } from '../lib/constants';
 
 // Components
 import StatsRow from '../components/dashboard/StatsRow';
@@ -31,7 +41,7 @@ export default function OrganizerDashboard() {
   const [logs, setLogs] = useState<FlowActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
-  const [showAnnouncement, setShowAnnouncement] = useState(false);
+  const [_showAnnouncement, setShowAnnouncement] = useState(false);
   const [showEndModal, setShowEndModal] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
   const isMobile = useIsMobile();
@@ -103,14 +113,14 @@ export default function OrganizerDashboard() {
 
     fetchInitialData();
 
-    // Fallback polling every 5s ensures data stays fresh even if WebSocket drops
-    const fallbackPoll = setInterval(fetchInitialData, 5000);
+    // Fallback polling ensures data stays fresh even if WebSocket drops
+    const fallbackPoll = setInterval(fetchInitialData, REALTIME_POLL_INTERVAL_MS);
 
     // Real-time subscriptions
     const eventSub = supabase.channel(`event-${eventId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `id=eq.${eventId}` }, payload => {
         setEvent((current: FlowEvent | null) => {
-          const newData = { ...current, ...payload.new };
+          const newData = { ...current, ...payload.new } as FlowEvent;
           setIsPaused(newData.status === 'PAUSED');
           if (newData.gates) {
             const statuses = newData.gate_status || {};
@@ -126,7 +136,7 @@ export default function OrganizerDashboard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'zones', filter: `event_id=eq.${eventId}` }, payload => {
         setZones(current => {
           const updated = [...current];
-          const newZone = payload.new as any;
+          const newZone = payload.new as FlowZone;
           const index = updated.findIndex(z => z.id === newZone.id);
           if (index !== -1) updated[index] = { ...current[index], ...newZone };
           return updated;
@@ -138,7 +148,7 @@ export default function OrganizerDashboard() {
     const passesSub = supabase.channel(`passes-${eventId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'passes', filter: `event_id=eq.${eventId}` }, payload => {
         setPasses(current => {
-          if (payload.eventType === 'INSERT') return [...current, payload.new];
+          if (payload.eventType === 'INSERT') return [...current, payload.new as FlowPass];
           if (payload.eventType === 'UPDATE') {
             const updated = [...current];
             const index = updated.findIndex(p => p.id === payload.new.id);
@@ -156,7 +166,7 @@ export default function OrganizerDashboard() {
 
     const logSub = supabase.channel(`logs-${eventId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log', filter: `event_id=eq.${eventId}` }, payload => {
-        setLogs(current => [payload.new, ...current].slice(0, 10));
+        setLogs(current => [payload.new as FlowActivityLog, ...current].slice(0, 10));
       }).subscribe((status) => {
         console.log('[Dashboard] logs subscription:', status);
       });

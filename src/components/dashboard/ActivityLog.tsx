@@ -1,10 +1,18 @@
-import { useEffect } from 'react';
+/**
+ * FlowPass — ActivityLog Dashboard Component
+ *
+ * Displays a real-time timeline of all event activity (zone changes,
+ * pass scans, gate reassignments, announcements). Supports CSV export.
+ */
+
 import { Download } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import type { FlowActivityLog } from '../../types';
 
 interface ActivityLogProps {
+  /** The event to show logs for */
   eventId: string;
-  logs: any[];
+  /** Activity log entries, newest-first */
+  logs: FlowActivityLog[];
 }
 
 export default function ActivityLog({ eventId, logs }: ActivityLogProps) {

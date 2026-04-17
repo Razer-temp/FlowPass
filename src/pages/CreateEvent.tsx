@@ -1,15 +1,23 @@
+/**
+ * FlowPass — Create Event Page
+ *
+ * Multi-step wizard for organizers to configure a new event:
+ * venue details → gate/zone mapping → live schedule preview → launch.
+ * Generates zones, gates, and the Supabase event record on launch.
+ */
+
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { 
-  CheckCircle2, Circle, AlertTriangle, Clock, Users, MapPin, 
-  Calendar, Ticket, Plus, X, ChevronRight, ChevronLeft, Copy, ExternalLink, Download,
+  CheckCircle2, Circle, Clock, Users, MapPin, 
+  Calendar, Plus, X, ChevronRight, ChevronLeft, Copy, ExternalLink, Download,
   Radio, Monitor, Smartphone, Zap, ScanLine
 } from 'lucide-react';
-import { generateSchedule, calculateGateLoads, ZoneSchedule } from '../lib/zoneAlgorithm';
+import { generateSchedule, calculateGateLoads } from '../lib/zoneAlgorithm';
 import { supabase } from '../lib/supabase';
 import { QRCodeCanvas } from 'qrcode.react';
-import { sanitizeEventField, sanitizePin } from '../lib/sanitize';
+import { sanitizeEventField } from '../lib/sanitize';
 import DatePicker from '../components/ui/DatePicker';
 import TimePicker from '../components/ui/TimePicker';
 import { trackEvent } from '../lib/analytics';
@@ -116,8 +124,8 @@ export default function CreateEvent() {
   const gateLoads = calculateGateLoads(Number(draft.totalCrowd) || 0, draft.numZones, draft.gates, draft.zoneGateMap);
 
   const [isLaunching, setIsLaunching] = useState(false);
-  const [launchError, setLaunchError] = useState<string | null>(null);
-  const [step1Errors, setStep1Errors] = useState<Record<string, string>>({});
+  const [_launchError, setLaunchError] = useState<string | null>(null);
+  const [_step1Errors, _setStep1Errors] = useState<Record<string, string>>({});
 
   const handleLaunch = async () => {
     setIsLaunching(true);
@@ -170,8 +178,7 @@ export default function CreateEvent() {
       localStorage.removeItem('flowpass_draft');
       setStep(4);
     } catch (error) {
-      console.error('Error launching event:', error);
-      alert('Failed to launch event. Check your connection and try again.');
+      console.error('[CreateEvent] Error launching event:', error);
       setLaunchError('Failed to launch event. Please check your connection and try again.');
     } finally {
       setIsLaunching(false);
@@ -445,7 +452,7 @@ export default function CreateEvent() {
                 </div>
                 
                 <div className="p-6 space-y-4">
-                  {schedule.map((zone, i) => (
+                  {schedule.map((zone, _i) => (
                     <div key={zone.id} className="flex items-start gap-4 p-4 rounded-xl bg-card border border-white/5">
                       <div className="mt-1">
                         {zone.status === 'ACTIVE' ? <div className="w-3 h-3 rounded-full bg-go shadow-[0_0_10px_rgba(0,255,135,0.5)]" /> : 

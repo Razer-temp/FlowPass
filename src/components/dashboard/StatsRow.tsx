@@ -1,4 +1,11 @@
-import { motion } from 'motion/react';
+/**
+ * FlowPass — StatsRow Dashboard Component
+ *
+ * Renders the top-level KPI cards on the organiser dashboard:
+ * total passes, exited count, remaining attendees, and the
+ * live chaos score with a sparkline trend chart.
+ */
+
 import { Users, CheckCircle2, AlertTriangle, TrendingDown } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 

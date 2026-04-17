@@ -1,3 +1,11 @@
+/**
+ * FlowPass — RolesSwitcher Landing Component
+ *
+ * Three-tab interactive showcase demonstrating the product from
+ * each user perspective: Organizer (laptop mockup), Attendee
+ * (phone mockup with live pass), and Gate Staff (scanner mockup).
+ */
+
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Radio, Ticket, ShieldCheck, Smartphone, Laptop, ScanLine } from 'lucide-react';

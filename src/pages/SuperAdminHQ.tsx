@@ -1,11 +1,21 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * FlowPass — Super Admin HQ
+ *
+ * A restricted command-center dashboard for monitoring all events
+ * across the FlowPass network. Secured by a master dispatch key.
+ * Provides global pass counts, real-time event status, and a
+ * network-wide gate overview.
+ */
+
+import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
-import { Lock, ShieldAlert, Zap, Globe, Users, Database, ExternalLink, Activity, Target, Shield, Ticket, Container } from 'lucide-react';
+import { Lock, ShieldAlert, Globe, Users, Database, ExternalLink, Activity, Target, Shield, Ticket, Container } from 'lucide-react';
 import useIsMobile from '../hooks/useIsMobile';
+import type { FlowEvent, FlowPass } from '../types';
+import { SUPER_ADMIN_MASTER_KEY, MAX_LOGIN_ATTEMPTS, RECENT_PASSES_LIMIT } from '../lib/constants';
 
-const MASTER_KEY = 'FLOW-NEXUS-99';
 
 type Tab = 'EVENTS' | 'USERS' | 'GATES';
 
@@ -22,20 +32,20 @@ export default function SuperAdminHQ() {
 
   // Dashboard Data State
   const [isLoading, setIsLoading] = useState(true);
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<FlowEvent[]>([]);
   const [totalPassesCount, setTotalPassesCount] = useState(0);
-  const [recentPasses, setRecentPasses] = useState<any[]>([]);
+  const [recentPasses, setRecentPasses] = useState<FlowPass[]>([]);
 
   // Authentication Logic
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = (e: FormEvent): void => {
     e.preventDefault();
-    if (password === MASTER_KEY) {
+    if (password === SUPER_ADMIN_MASTER_KEY) {
       setIsUnlocked(true);
     } else {
       setShake(true);
       setTimeout(() => setShake(false), 400);
       setFailedAttempts(f => f + 1);
-      if (failedAttempts + 1 >= 3) {
+      if (failedAttempts + 1 >= MAX_LOGIN_ATTEMPTS) {
         navigate('/');
       }
     }
@@ -50,7 +60,7 @@ export default function SuperAdminHQ() {
         const [eventsRes, passesCountRes, recentPassesRes] = await Promise.all([
           supabase.from('events').select('*').order('created_at', { ascending: false }),
           supabase.from('passes').select('*', { count: 'exact', head: true }),
-          supabase.from('passes').select(`*, events(name)`).order('created_at', { ascending: false }).limit(100)
+          supabase.from('passes').select(`*, events(name)`).order('created_at', { ascending: false }).limit(RECENT_PASSES_LIMIT)
         ]);
         
         if (eventsRes.data) setEvents(eventsRes.data);
@@ -111,7 +121,7 @@ export default function SuperAdminHQ() {
 
           {failedAttempts > 0 && (
             <p className="text-stop text-sm font-mono mt-4">
-              Access Denied. {3 - failedAttempts} attempts remaining.
+              Access Denied. {MAX_LOGIN_ATTEMPTS - failedAttempts} attempts remaining.
             </p>
           )}
         </div>
@@ -142,7 +152,7 @@ export default function SuperAdminHQ() {
   });
   
   const chartData = last7Days.map(dateStr => {
-    const dailyEvents = events.filter(e => e.created_at.startsWith(dateStr));
+    const dailyEvents = events.filter(e => (e.created_at ?? '').startsWith(dateStr));
     const dailyCrowd = dailyEvents.reduce((sum, e) => sum + (Number(e.crowd) || 0), 0);
     return { date: dateStr, total: dailyCrowd, count: dailyEvents.length };
   });
@@ -357,10 +367,10 @@ export default function SuperAdminHQ() {
                             className="hover:bg-white/[0.02] transition-colors"
                           >
                             <td className="p-4 font-mono text-xs text-dim">
-                              {new Date(pass.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                              {pass.created_at ? new Date(pass.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
                             </td>
                             <td className="p-4 font-bold">{pass.attendee_name || 'Anonymous User'}</td>
-                            <td className="p-4 text-dim">{pass.events?.name || 'Unknown Event'}</td>
+                            <td className="p-4 text-dim">{(pass as FlowPass & { events?: { name: string } }).events?.name || 'Unknown Event'}</td>
                             <td className="p-4">
                               <div className="flex items-center gap-2">
                                 <span className="bg-white/5 border border-white/10 rounded px-2 py-0.5 text-xs font-mono">{pass.seat_number}</span>
@@ -371,7 +381,7 @@ export default function SuperAdminHQ() {
                             <td className="p-4 text-right">
                               <span className={`inline-flex px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
                                 pass.status === 'LOCKED' ? 'bg-stop/20 text-stop' :
-                                pass.status === 'SCANNED' ? 'bg-wait/20 text-wait' :
+                                pass.status === 'WAIT' ? 'bg-wait/20 text-wait' :
                                 'bg-go/20 text-go'
                               }`}>
                                 {pass.status}

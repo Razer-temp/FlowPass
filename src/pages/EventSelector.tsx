@@ -1,33 +1,41 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * FlowPass — Event Selector Page
+ *
+ * Displays a searchable list of all active events. Attendees pick
+ * their event here, enter the security PIN if required, and are
+ * redirected to the registration flow.
+ */
+
+import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import type { FlowEvent } from '../types';
 import { Ticket, Calendar, MapPin, ArrowRight, Search, Lock, X, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function EventSelector() {
   const navigate = useNavigate();
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<FlowEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [searchQuery, setSearchQuery] = useState('');
   
-  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<FlowEvent | null>(null);
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState(false);
 
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        // Fetching events including the 'pin' column
         const { data, error } = await supabase
           .from('events')
           .select('*')
           .order('created_at', { ascending: false });
         
         if (data) setEvents(data);
-        if (error) console.error('Supabase error:', error);
+        if (error) console.error('[EventSelector] Supabase error:', error);
       } catch (err) {
-        console.error('Error fetching events:', err);
+        console.error('[EventSelector] Error fetching events:', err);
       } finally {
         setIsLoading(false);
       }
@@ -40,8 +48,7 @@ export default function EventSelector() {
     e.venue.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleEventClick = (event: any) => {
-    // If the event doesn't have a PIN, let them through immediately (for backward compatibility)
+  const handleEventClick = (event: FlowEvent): void => {
     if (!event.pin) {
       navigate(`/register/${event.id}`);
     } else {
@@ -51,13 +58,13 @@ export default function EventSelector() {
     }
   };
 
-  const handlePinSubmit = (e: React.FormEvent) => {
+  const handlePinSubmit = (e: FormEvent): void => {
     e.preventDefault();
     if (selectedEvent && pinInput.toUpperCase() === selectedEvent.pin.toUpperCase()) {
       navigate(`/register/${selectedEvent.id}`);
     } else {
       setPinError(true);
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Haptic feedback on error
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
     }
   };
 
@@ -92,7 +99,7 @@ export default function EventSelector() {
           </div>
         ) : filteredEvents.length === 0 ? (
           <div className="bg-surface border border-white/10 rounded-2xl p-12 text-center shadow-lg">
-            <p className="text-xl text-dim mb-2">No results matching "{searchQuery}"</p>
+            <p className="text-xl text-dim mb-2">No results matching &quot;{searchQuery}&quot;</p>
             <button onClick={() => setSearchQuery('')} className="text-go font-bold hover:underline">Clear search</button>
           </div>
         ) : (
@@ -191,7 +198,7 @@ export default function EventSelector() {
                     disabled={!pinInput.trim()}
                     className="w-full py-4 bg-white text-background font-bold text-lg rounded-xl hover:bg-white/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    Unlock & Register <ArrowRight className="w-5 h-5"/>
+                    Unlock &amp; Register <ArrowRight className="w-5 h-5"/>
                   </button>
                 </form>
               </div>

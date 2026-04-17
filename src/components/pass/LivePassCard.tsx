@@ -1,14 +1,29 @@
+/**
+ * FlowPass — LivePassCard Component
+ *
+ * The primary attendee-facing pass card on the live pass view.
+ * Shows real-time zone countdown, status transitions (LOCKED → ACTIVE → USED),
+ * gate reassignment alerts, and a QR code for gate staff scanning.
+ */
+
 import { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion } from 'motion/react';
 import { CheckCircle2, AlertTriangle, PauseCircle } from 'lucide-react';
+import type { FlowPass, FlowEvent, FlowZone } from '../../types';
 
 interface LivePassCardProps {
-  pass: any;
-  event: any;
-  zone: any;
+  /** Attendee pass data */
+  pass: FlowPass;
+  /** Event details */
+  event: FlowEvent;
+  /** Assigned zone */
+  zone: FlowZone;
+  /** Callback to auto-activate pass when countdown reaches zero */
   onGoNow: () => void;
+  /** Whether the gate has been reassigned */
   hasReassigned: boolean;
+  /** Dismiss the gate reassignment alert */
   onDismissReassign: () => void;
 }
 

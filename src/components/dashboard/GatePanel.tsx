@@ -1,60 +1,61 @@
-import { useState, useEffect } from 'react';
+/**
+ * FlowPass — GatePanel Dashboard Component
+ *
+ * Displays all gates for an event with live status controls (CLEAR / BUSY / BLOCKED).
+ * Features a "Smart Reassignment" system: when a gate is blocked, FlowPass
+ * automatically reassigns affected zones and passes to the next available gate,
+ * with an undo countdown to prevent accidental triggers.
+ */
+
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertTriangle, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
+import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import type { GateDisplay, FlowZone, GateReassignmentAlert } from '../../types';
 
 interface GatePanelProps {
-  gates: any[];
-  zones: any[];
+  /** Current gate status list */
+  gates: GateDisplay[];
+  /** All zones for the event */
+  zones: FlowZone[];
+  /** The event ID */
   eventId: string;
 }
 
-export default function GatePanel({ gates, zones, eventId }: GatePanelProps) {
-  const [activeAlert, setActiveAlert] = useState<any>(null);
-  const [undoCountdown, setUndoCountdown] = useState(5);
+/** Auto-confirm countdown duration in seconds */
+const UNDO_COUNTDOWN_SECONDS = 5;
 
-  // Simulate a gate becoming blocked for demonstration
-  const simulateGateBlock = (gateName: string) => {
+export default function GatePanel({ gates, zones, eventId }: GatePanelProps) {
+  const [activeAlert, setActiveAlert] = useState<GateReassignmentAlert | null>(null);
+  const [undoCountdown, setUndoCountdown] = useState(UNDO_COUNTDOWN_SECONDS);
+
+  /** Triggers smart gate reassignment when a gate is marked as blocked */
+  const simulateGateBlock = (gateName: string): void => {
     const affectedZones = zones.filter(z => z.gates.includes(gateName));
     if (affectedZones.length === 0) return;
 
-    // Find next clear gate (simplified logic for prototype)
+    // Find next clear gate
     const clearGates = gates.filter(g => g.name !== gateName && g.status === 'CLEAR');
     const newGate = clearGates.length > 0 ? clearGates[0].name : 'Any Available Gate';
 
     setActiveAlert({
       blockedGate: gateName,
       affectedZones: affectedZones.map(z => z.name),
-      newGate: newGate
+      newGate: newGate,
     });
-    setUndoCountdown(5);
+    setUndoCountdown(UNDO_COUNTDOWN_SECONDS);
   };
 
-  // Auto-confirm countdown logic
-  useEffect(() => {
-    if (!activeAlert) return;
-
-    if (undoCountdown > 0) {
-      const timer = setTimeout(() => setUndoCountdown(c => c - 1), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      // Auto-confirm triggered
-      handleConfirmReassignment();
-    }
-  }, [activeAlert, undoCountdown]);
-
-  const handleConfirmReassignment = async () => {
+  /** Executes the gate reassignment in the database */
+  const handleConfirmReassignment = useCallback(async (): Promise<void> => {
     if (!activeAlert) return;
     try {
-      // 1. Fetch current gate_status
       const { data: eventData } = await supabase.from('events').select('gate_status').eq('id', eventId).single();
       const newGateStatus = { ...(eventData?.gate_status || {}) };
       newGateStatus[activeAlert.blockedGate] = 'BLOCKED';
 
-      // 2. Update events table
       await supabase.from('events').update({ gate_status: newGateStatus }).eq('id', eventId);
 
-      // 3. Update affected zones
       for (const zone of zones) {
         if (zone.gates.includes(activeAlert.blockedGate)) {
           const newGates = zone.gates.filter((g: string) => g !== activeAlert.blockedGate);
@@ -63,7 +64,6 @@ export default function GatePanel({ gates, zones, eventId }: GatePanelProps) {
           }
           await supabase.from('zones').update({ gates: newGates }).eq('id', zone.id);
 
-          // Also update passes assigned to the blocked gate → reassign to new gate
           if (activeAlert.newGate !== 'Any Available Gate') {
             await supabase.from('passes')
               .update({ gate_id: activeAlert.newGate })
@@ -73,20 +73,32 @@ export default function GatePanel({ gates, zones, eventId }: GatePanelProps) {
         }
       }
 
-      // Log activity
       await supabase.from('activity_log').insert({
         event_id: eventId,
         action: `SMART REASSIGNMENT: ${activeAlert.affectedZones.join(', ')} moved from ${activeAlert.blockedGate} to ${activeAlert.newGate}`,
-        type: 'REASSIGN'
+        type: 'REASSIGN',
       });
 
       setActiveAlert(null);
     } catch (e) {
-      console.error("Error during reassignment", e);
+      console.error('[GatePanel] Error during reassignment:', e);
     }
-  };
+  }, [activeAlert, eventId, zones]);
 
-  const updateGateStatus = async (gateName: string, status: string) => {
+  // Auto-confirm countdown logic
+  useEffect(() => {
+    if (!activeAlert) return;
+
+    if (undoCountdown > 0) {
+      const timer = setTimeout(() => setUndoCountdown(c => c - 1), 1000);
+      return () => clearTimeout(timer);
+    } else {
+      handleConfirmReassignment();
+    }
+  }, [activeAlert, undoCountdown, handleConfirmReassignment]);
+
+  /** Updates a single gate's status in the events table */
+  const updateGateStatus = async (gateName: string, status: string): Promise<void> => {
     try {
       const { data: eventData } = await supabase.from('events').select('gate_status').eq('id', eventId).single();
       const newGateStatus = { ...(eventData?.gate_status || {}) };
@@ -102,7 +114,7 @@ export default function GatePanel({ gates, zones, eventId }: GatePanelProps) {
         
         if (latestZones) {
           for (const zone of latestZones) {
-            // Robust name matching: Normalize both to just the letters/labels (e.g. "Zone A" -> "A")
+            // Robust name matching: Normalize both to just the letters/labels
             const zoneLabel = zone.name.toUpperCase().replace('ZONE', '').trim();
             
             let shouldBeAssigned = false;
@@ -111,15 +123,8 @@ export default function GatePanel({ gates, zones, eventId }: GatePanelProps) {
               const assignedGatesForZone = mapping[zoneLabel] || [];
               shouldBeAssigned = assignedGatesForZone.includes(gateName);
             } else {
-              // Fallback for Legacy events: If no mapping, check if the zone name 
-              // contains the gate name partially or if they follow standard A-J mapping
-              // Or just assume if it's currently NOT in the gates array, but seems like it should be?
-              // Actually, safest is to check if it's currently in NO gates, or check default design.
-              // For Legacy, we'll use a simple heuristic: if the gate name (e.g. "Gate 1")
-              // was and is part of the event's gates list, it should probably be in all zones by default 
-              // UNLESS specifically unassigned (but we don't know that).
-              // So we'll skip legacy unless we're sure.
-              console.warn("Legacy event: No __mapping found. Skipping automatic restoration.");
+              // Legacy events without __mapping: skip automatic restoration
+              console.warn('[GatePanel] Legacy event: No __mapping found. Skipping automatic restoration.');
             }
 
             if (shouldBeAssigned && !zone.gates.includes(gateName)) {
@@ -132,15 +137,15 @@ export default function GatePanel({ gates, zones, eventId }: GatePanelProps) {
 
       await supabase.from('activity_log').insert({
         event_id: eventId,
-        action: `Gate ${gateName} marked as ${status} ${status === 'CLEAR' ? ' (Automatic restoration triggered)' : ''}`,
-        type: 'SYSTEM'
+        action: `Gate ${gateName} marked as ${status}${status === 'CLEAR' ? ' (Automatic restoration triggered)' : ''}`,
+        type: 'SYSTEM',
       });
     } catch (e) {
-      console.error("Failed to update gate:", e);
+      console.error('[GatePanel] Failed to update gate:', e);
     }
   };
 
-  const handleUndo = () => {
+  const handleUndo = (): void => {
     setActiveAlert(null);
   };
 
@@ -160,7 +165,7 @@ export default function GatePanel({ gates, zones, eventId }: GatePanelProps) {
               className="absolute bottom-0 left-0 h-1 bg-stop"
               initial={{ width: '100%' }}
               animate={{ width: '0%' }}
-              transition={{ duration: 5, ease: 'linear' }}
+              transition={{ duration: UNDO_COUNTDOWN_SECONDS, ease: 'linear' }}
             />
 
             <div className="flex items-start gap-3">

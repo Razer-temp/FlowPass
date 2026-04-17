@@ -1,20 +1,31 @@
+/**
+ * FlowPass — HoldToConfirmButton Component
+ *
+ * A tactile "hold to confirm" button for attendees to log their exit.
+ * Fills progressively while held, with haptic feedback on completion.
+ */
+
 import { useState, useRef } from 'react';
 import { CheckCircle2 } from 'lucide-react';
 
+/** Duration in ms the user must hold before confirmation triggers */
+const HOLD_DURATION_MS = 1500;
+
 interface HoldToConfirmButtonProps {
+  /** Callback fired once the hold duration completes */
   onConfirm: () => void;
 }
 
 export default function HoldToConfirmButton({ onConfirm }: HoldToConfirmButtonProps) {
   const [progress, setProgress] = useState(0);
   const [isConfirmed, setIsConfirmed] = useState(false);
-  const requestRef = useRef<number>();
-  const startTimeRef = useRef<number>();
+  const requestRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
 
   const animate = (time: number) => {
     if (!startTimeRef.current) startTimeRef.current = time;
     const elapsed = time - startTimeRef.current;
-    const newProgress = Math.min((elapsed / 1500) * 100, 100); // 1.5 seconds to fill
+    const newProgress = Math.min((elapsed / HOLD_DURATION_MS) * 100, 100);
     setProgress(newProgress);
 
     if (newProgress < 100) {
@@ -28,7 +39,7 @@ export default function HoldToConfirmButton({ onConfirm }: HoldToConfirmButtonPr
 
   const startHold = () => {
     if (isConfirmed) return;
-    startTimeRef.current = undefined;
+    startTimeRef.current = null;
     requestRef.current = requestAnimationFrame(animate);
   };
 

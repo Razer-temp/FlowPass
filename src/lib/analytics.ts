@@ -8,27 +8,29 @@
  * Google Service: Google Analytics
  */
 
-// Default placeholder for development if not provided in .env
+import type { GtagArgs } from '../types';
+
+/** GA4 Measurement ID loaded from environment (falls back to placeholder) */
 export const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-XXXXXXXXXX';
 
 /**
  * Ensures the global `dataLayer` and `gtag` functions exist.
  */
-function initGtag() {
+function initGtag(): void {
   if (typeof window === 'undefined') return;
   window.dataLayer = window.dataLayer || [];
   if (!window.gtag) {
-    window.gtag = function gtag() {
-      window.dataLayer.push(arguments);
+    window.gtag = function gtag(...args: GtagArgs) {
+      window.dataLayer.push(args);
     };
   }
 }
 
 /**
  * Tracks a page view event.
- * @param url The current path/URL of the page
+ * @param url - The current path/URL of the page
  */
-export const trackPageView = (url: string) => {
+export const trackPageView = (url: string): void => {
   initGtag();
   if (window.gtag) {
     window.gtag('config', GA_MEASUREMENT_ID, {
@@ -41,18 +43,23 @@ export const trackPageView = (url: string) => {
  * Custom event tracking structure based on GA4 recommendations.
  */
 interface AnalyticsEvent {
+  /** The GA4 event action name */
   action: string;
+  /** Event category for grouping */
   category?: string;
+  /** Human-readable label */
   label?: string;
+  /** Numeric value associated with the event */
   value?: number;
-  [key: string]: any; // Allow custom dimensions/metrics
+  /** Additional custom dimensions/metrics */
+  [key: string]: string | number | undefined;
 }
 
 /**
  * Tracks a custom event in Google Analytics.
- * @param event The event payload configuration
+ * @param event - The event payload configuration
  */
-export const trackEvent = ({ action, category, label, value, ...rest }: AnalyticsEvent) => {
+export const trackEvent = ({ action, category, label, value, ...rest }: AnalyticsEvent): void => {
   initGtag();
   if (window.gtag) {
     window.gtag('event', action, {
@@ -65,11 +72,12 @@ export const trackEvent = ({ action, category, label, value, ...rest }: Analytic
 };
 
 /**
- * Type declarations for the global window object to satisfy TypeScript
+ * Type declarations for the global window object to satisfy TypeScript.
+ * Augments Window with GA4's dataLayer and gtag function.
  */
 declare global {
   interface Window {
-    dataLayer: any[];
-    gtag: (...args: any[]) => void;
+    dataLayer: GtagArgs[];
+    gtag: (...args: GtagArgs) => void;
   }
 }

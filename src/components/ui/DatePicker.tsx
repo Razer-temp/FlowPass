@@ -1,3 +1,11 @@
+/**
+ * FlowPass — DatePicker UI Component
+ *
+ * Custom animated calendar dropdown for selecting event dates.
+ * Replaces the native date input with a styled, accessible
+ * calendar grid matching the FlowPass dark-mode design system.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';

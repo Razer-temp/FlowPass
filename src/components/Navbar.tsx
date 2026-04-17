@@ -1,3 +1,10 @@
+/**
+ * FlowPass — Navbar Component
+ *
+ * Persistent top navigation bar with the FlowPass logo, section
+ * anchor links, and a CTA to create a new event.
+ */
+
 import { Link } from 'react-router-dom';
 import { Ticket } from 'lucide-react';
 

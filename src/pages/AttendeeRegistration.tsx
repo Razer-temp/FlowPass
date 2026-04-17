@@ -1,3 +1,11 @@
+/**
+ * FlowPass — Attendee Registration Page
+ *
+ * Public-facing registration form where attendees enter their name
+ * and seat number to receive a live digital pass. The seat number
+ * is used to auto-detect the correct zone and gate assignment.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -118,8 +126,8 @@ export default function AttendeeRegistration() {
         .from('passes')
         .insert({
           event_id: eventId,
-          zone_id: detectionResult.zone.id,
-          gate_id: detectionResult.zone.gates[0],
+          zone_id: detectionResult!.zone.id,
+          gate_id: detectionResult!.zone.gates[0],
           attendee_name: sanitizedName,
           seat_number: sanitizedSeat,
           status: 'LOCKED'
@@ -136,7 +144,7 @@ export default function AttendeeRegistration() {
       // Log activity
       await supabase.from('activity_log').insert({
         event_id: eventId,
-        action: `Pass generated for ${name.trim()} in ${detectionResult.zone.name}`,
+        action: `Pass generated for ${name.trim()} in ${detectionResult!.zone.name}`,
         type: 'PASS'
       });
 
@@ -185,7 +193,7 @@ export default function AttendeeRegistration() {
 
         {isComplete ? null : generatedPass ? (
           /* ④ INSTANT PASS */
-          <PassCard pass={generatedPass} event={event} zone={zones.find(z => z.id === generatedPass.zone_id) || detectionResult?.zone} />
+          <PassCard pass={generatedPass} event={event} zone={zones.find(z => z.id === generatedPass.zone_id) ?? detectionResult?.zone ?? zones[0]} />
         ) : (
           /* ② SMART FORM */
           <form onSubmit={handleSubmit} className="space-y-5">

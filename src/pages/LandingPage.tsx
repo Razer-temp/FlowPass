@@ -1,29 +1,32 @@
+/**
+ * FlowPass — Landing Page
+ *
+ * The public-facing homepage that explains the product, showcases
+ * an interactive hero pass card, and provides CTAs for both
+ * organisers and attendees.
+ */
+
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { Ticket, Radio, ShieldCheck, Zap, Users, Smartphone, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Ticket, Radio, Users, CheckCircle2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { HERO_CYCLE_INTERVAL_MS } from '../lib/constants';
 
 import ChaosVsCalm from '../components/landing/ChaosVsCalm';
 import RolesSwitcher from '../components/landing/RolesSwitcher';
 import ScrollTimeline from '../components/landing/ScrollTimeline';
 import GlassCard from '../components/landing/GlassCard';
+
 export default function LandingPage() {
   const [passState, setPassState] = useState<'WAIT' | 'ACTIVE'>('WAIT');
-  const [scrollY, setScrollY] = useState(0);
 
   // Auto-cycle the pass state for hero animation
   useEffect(() => {
     const interval = setInterval(() => {
       setPassState(s => s === 'WAIT' ? 'ACTIVE' : 'WAIT');
-    }, 4000);
+    }, HERO_CYCLE_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   return (

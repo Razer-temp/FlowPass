@@ -1,3 +1,11 @@
+/**
+ * FlowPass — ScrollTimeline Landing Component
+ *
+ * Scroll-driven progress bars simulating a three-zone staggered
+ * dispersal timeline. Bars animate into view as the user scrolls,
+ * reinforcing the core value proposition of timed zone releases.
+ */
+
 import { motion } from 'motion/react';
 
 export default function ScrollTimeline() {

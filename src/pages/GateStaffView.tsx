@@ -1,11 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+/**
+ * FlowPass — Gate Staff View
+ *
+ * The on-ground interface for gate staff. Supports QR-code scanning,
+ * manual pass lookup, offline validation, and live zone status.
+ * Designed for speed and reliability under poor network conditions.
+ */
+
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { FlowEvent, FlowZone, FlowPass, ValidationResult, ShiftStats } from '../types';
-import { CheckCircle2, XCircle, AlertTriangle, Clock, Camera, WifiOff, ArrowLeft, PauseCircle, X } from 'lucide-react';
+import { CheckCircle2, XCircle, AlertTriangle, Clock, Camera, WifiOff, PauseCircle, X } from 'lucide-react';
 import QrScanner from '../components/QrScanner';
 import useWakeLock from '../hooks/useWakeLock';
 import { trackEvent } from '../lib/analytics';
+import { REALTIME_POLL_INTERVAL_MS } from '../lib/constants';
 
 export default function GateStaffView() {
   const { eventId, gateId } = useParams();
@@ -96,13 +105,14 @@ export default function GateStaffView() {
     fetchInitialData();
 
     // Fallback polling every 5s ensures data stays fresh even if WebSocket drops
-    const fallbackPoll = setInterval(fetchInitialData, 5000);
+    const fallbackPoll = setInterval(fetchInitialData, REALTIME_POLL_INTERVAL_MS);
 
     // Real-time Subscriptions
     const eventSub = supabase.channel(`gate-event-${eventId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `id=eq.${eventId}` }, payload => {
         setEvent((current: FlowEvent | null) => {
-          const newData = { ...current, ...payload.new };
+          if (!current) return payload.new as FlowEvent;
+          const newData = { ...current, ...payload.new } as FlowEvent;
           const statuses = newData.gate_status || {};
           setCurrentGateStatus(statuses[decodedGateId] || 'CLEAR');
           return newData;
@@ -115,7 +125,7 @@ export default function GateStaffView() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'zones', filter: `event_id=eq.${eventId}` }, payload => {
         setZones(current => {
           const updated = [...current];
-          const newZone = payload.new as any;
+          const newZone = payload.new as FlowZone;
           const index = updated.findIndex(z => z.id === newZone.id);
           const zoneIncludesGate = newZone.gates && newZone.gates.includes(decodedGateId);
 
@@ -139,15 +149,15 @@ export default function GateStaffView() {
         setPassesCache(current => {
           const updated = { ...current };
           const eventType = payload.eventType;
-          const newPass = payload.new as any;
-          const oldPass = payload.old as any;
+          const newPass = payload.new as FlowPass;
+          const oldPass = payload.old as Partial<FlowPass>;
           
-          if (eventType === 'DELETE') {
+          if (eventType === 'DELETE' && oldPass.id) {
             delete updated[oldPass.id];
-          } else if (eventType === 'UPDATE') {
+          } else if (eventType === 'UPDATE' && newPass.id) {
             updated[newPass.id] = { ...updated[newPass.id], ...newPass };
-          } else {
-            updated[newPass.id] = newPass as FlowPass;
+          } else if (newPass.id) {
+            updated[newPass.id] = newPass;
           }
           return updated;
         });
@@ -381,7 +391,7 @@ export default function GateStaffView() {
                       // Step 2: Validate AFTER scanner has unmounted
                       setTimeout(() => {
                         try {
-                          const fullIdPass = passesCache[extractedId];
+                          // Pass exists in cache — extract short code for validation
                           const shortCode = extractedId.slice(-6).toUpperCase();
                           setInputCode(shortCode);
                           setIsProcessingScan(false);

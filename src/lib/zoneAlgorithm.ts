@@ -1,3 +1,12 @@
+/**
+ * FlowPass — Zone Scheduling Algorithm
+ *
+ * Core algorithm that divides an event crowd into sequential zones,
+ * calculates staggered exit times with configurable intervals, and
+ * distributes gate loads evenly. Powers both the live schedule
+ * preview in CreateEvent and the runtime zone controller.
+ */
+
 export interface ZoneSchedule {
   id: string;
   name: string;
@@ -73,7 +82,7 @@ export function generateSchedule(
 
   const schedule: ZoneSchedule[] = [];
 
-  zones.forEach((zone, index) => {
+  zones.forEach((zone, _index) => {
     schedule.push({
       id: zone,
       name: `Zone ${zone}`,

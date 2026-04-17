@@ -1,8 +1,17 @@
+/**
+ * FlowPass — AnnouncementFeed Component
+ *
+ * Displays a chronological feed of organiser announcements on the
+ * attendee's live pass view. Recent items (< 5 min) are highlighted.
+ */
+
 import { useState, useEffect } from 'react';
 import { Megaphone } from 'lucide-react';
+import type { FlowAnnouncement } from '../../types';
 
 interface AnnouncementFeedProps {
-  announcements: any[];
+  /** Announcements ordered newest-first */
+  announcements: FlowAnnouncement[];
 }
 
 export default function AnnouncementFeed({ announcements }: AnnouncementFeedProps) {
@@ -42,7 +51,7 @@ export default function AnnouncementFeed({ announcements }: AnnouncementFeedProp
         </div>
       ) : (
         <div className="space-y-4">
-          {announcements.map((ann, idx) => {
+          {announcements.map((ann) => {
             const newItem = isNew(ann.created_at);
             return (
               <div key={ann.id} className="bg-surface border border-white/10 rounded-xl p-5 relative overflow-hidden">

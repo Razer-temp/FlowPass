@@ -1,3 +1,11 @@
+/**
+ * FlowPass — PassView Page
+ *
+ * The attendee’s live pass view. Shows real-time zone status,
+ * gate conditions, announcements, and a QR code for gate staff.
+ * Uses wake-lock to prevent screen sleep during events.
+ */
+
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -7,8 +15,8 @@ import LivePassCard from '../components/pass/LivePassCard';
 import GateStatus from '../components/pass/GateStatus';
 import AnnouncementFeed from '../components/pass/AnnouncementFeed';
 import HoldToConfirmButton from '../components/pass/HoldToConfirmButton';
-import { X } from 'lucide-react';
 import GoogleTranslate from '../components/GoogleTranslate';
+import { REALTIME_POLL_INTERVAL_MS } from '../lib/constants';
 
 export default function PassView() {
   const { passId } = useParams();
@@ -21,7 +29,6 @@ export default function PassView() {
   const [isLoading, setIsLoading] = useState(true);
   const [showTip, setShowTip] = useState(false);
   const [hasReassigned, setHasReassigned] = useState(false);
-  const [originalGate, setOriginalGate] = useState<string | null>(null);
 
   // Prevent screen sleep so QR code stays visible for gate staff
   useWakeLock();
@@ -45,7 +52,6 @@ export default function PassView() {
           return;
         }
         setPass(passData);
-        setOriginalGate(passData.gate_id);
 
         const { data: eventData } = await supabase.from('events').select('*').eq('id', passData.event_id).single();
         if (eventData) {
@@ -73,7 +79,7 @@ export default function PassView() {
     fetchInitialData();
 
     // Fallback polling every 5s ensures data stays fresh even if WebSocket drops
-    const fallbackPoll = setInterval(fetchInitialData, 5000);
+    const fallbackPoll = setInterval(fetchInitialData, REALTIME_POLL_INTERVAL_MS);
 
     // Real-time subscriptions
     const eventSub = supabase.channel(`pass-event-${passId}`)
@@ -96,10 +102,11 @@ export default function PassView() {
     const passSub = supabase.channel(`pass-${passId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'passes', filter: `id=eq.${passId}` }, payload => {
         setPass((current: FlowPass | null) => {
-          const updatedPass = { ...current, ...payload.new };
-          if (current && current.gate_id !== updatedPass.gate_id) {
+          if (!current) return current;
+          const updatedPass = { ...current, ...payload.new } as FlowPass;
+          if (current.gate_id !== updatedPass.gate_id) {
             setHasReassigned(true);
-            if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Amber pulse equivalent
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
           }
           return updatedPass;
         });
@@ -120,7 +127,7 @@ export default function PassView() {
 
     const annSub = supabase.channel(`pass-ann-${passId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, payload => {
-        setAnnouncements(current => [payload.new, ...current]);
+        setAnnouncements(current => [payload.new as FlowAnnouncement, ...current]);
       }).subscribe((status) => {
         console.log('[PassView] announcements subscription:', status);
       });
@@ -139,20 +146,23 @@ export default function PassView() {
     setShowTip(false);
   };
 
-  const handleGoNow = async () => {
+  /** Marks the pass as ACTIVE so the attendee can proceed to gates */
+  const handleGoNow = async (): Promise<void> => {
+    if (!pass) return;
     if (pass.status !== 'ACTIVE') {
       await supabase.from('passes').update({ status: 'ACTIVE' }).eq('id', pass.id);
     }
   };
 
-  const handleExitConfirm = async () => {
+  /** Marks the pass as USED when the attendee confirms they have exited */
+  const handleExitConfirm = async (): Promise<void> => {
+    if (!pass) return;
     await supabase.from('passes').update({ status: 'USED', exited_at: new Date().toISOString() }).eq('id', pass.id);
     
-    // Log activity
     await supabase.from('activity_log').insert({
       event_id: pass.event_id,
       action: `Pass scanned for ${pass.attendee_name} at ${pass.gate_id}`,
-      type: 'PASS'
+      type: 'PASS',
     });
   };
 

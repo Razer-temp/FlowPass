@@ -1,17 +1,28 @@
+/**
+ * FlowPass — BigScreen Public Display
+ *
+ * A fullscreen, TV-optimised display designed for stadium screens
+ * or projectors. Shows zone statuses with large countdown timers,
+ * an announcement ticker, and a QR code for attendee registration.
+ * Automatically enters fullscreen mode on mount.
+ */
+
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 import { Megaphone, AlertTriangle, CheckCircle2, PauseCircle } from 'lucide-react';
 import GoogleTranslate from '../components/GoogleTranslate';
+import type { FlowEvent, FlowZone, FlowPass, FlowAnnouncement, GateDisplay } from '../types';
+import { REALTIME_POLL_INTERVAL_MS, COUNTDOWN_VISIBILITY_MS, RECENT_ANNOUNCEMENTS_LIMIT } from '../lib/constants';
 
 export default function BigScreen() {
   const { eventId } = useParams();
-  const [event, setEvent] = useState<any>(null);
-  const [zones, setZones] = useState<any[]>([]);
-  const [passes, setPasses] = useState<any[]>([]);
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [gates, setGates] = useState<any[]>([]);
+  const [event, setEvent] = useState<FlowEvent | null>(null);
+  const [zones, setZones] = useState<FlowZone[]>([]);
+  const [passes, setPasses] = useState<FlowPass[]>([]);
+  const [announcements, setAnnouncements] = useState<FlowAnnouncement[]>([]);
+  const [gates, setGates] = useState<GateDisplay[]>([]);
   
   // Zero-drift clock
   const [now, setNow] = useState(Date.now());
@@ -23,8 +34,8 @@ export default function BigScreen() {
         if (document.documentElement.requestFullscreen) {
           await document.documentElement.requestFullscreen();
         }
-      } catch (e) {
-        console.warn("Fullscreen request failed or blocked by browser.");
+      } catch (_) {
+        console.warn('[BigScreen] Fullscreen request failed or blocked by browser.');
       }
     };
     requestFS();
@@ -63,13 +74,13 @@ export default function BigScreen() {
 
     fetchInitialData();
 
-    // Fallback polling every 5s
-    const fallbackPoll = setInterval(fetchInitialData, 5000);
+    // Fallback polling
+    const fallbackPoll = setInterval(fetchInitialData, REALTIME_POLL_INTERVAL_MS);
 
     const eventSub = supabase.channel(`screen-event-${eventId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `id=eq.${eventId}` }, payload => {
-        setEvent((current: any) => {
-          const newData = { ...current, ...payload.new };
+        setEvent((current: FlowEvent | null) => {
+          const newData = { ...current, ...payload.new } as FlowEvent;
           if (newData.gates) {
             const statuses = newData.gate_status || {};
             setGates(newData.gates.map((g: string) => ({ name: g, status: statuses[g] || 'CLEAR' })));
@@ -82,7 +93,7 @@ export default function BigScreen() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'zones', filter: `event_id=eq.${eventId}` }, payload => {
         setZones(current => {
           const updated = [...current];
-          const newZone = payload.new as any;
+          const newZone = payload.new as FlowZone;
           const index = updated.findIndex(z => z.id === newZone.id);
           if (index !== -1) {
             updated[index] = { ...current[index], ...payload.new };
@@ -95,7 +106,7 @@ export default function BigScreen() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'passes', filter: `event_id=eq.${eventId}` }, payload => {
         setPasses(current => {
           const passEvent = payload.eventType;
-          const newPass = payload.new as any;
+          const newPass = payload.new as FlowPass;
           if (passEvent === 'INSERT') return [...current, newPass];
           if (passEvent === 'UPDATE') {
             const updated = [...current];
@@ -109,7 +120,7 @@ export default function BigScreen() {
 
     const annSub = supabase.channel(`screen-ann-${eventId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements', filter: `event_id=eq.${eventId}` }, payload => {
-        setAnnouncements(current => [payload.new, ...current].slice(0, 5));
+        setAnnouncements(current => [payload.new as FlowAnnouncement, ...current].slice(0, RECENT_ANNOUNCEMENTS_LIMIT));
       }).subscribe();
 
     return () => {
@@ -272,7 +283,7 @@ export default function BigScreen() {
               } else {
                 // Check if it's counting down (within 15 mins)
                 const exitTime = new Date(zone.exit_time).getTime();
-                if (exitTime - now < 15 * 60000 && exitTime - now > 0) {
+                if (exitTime - now < COUNTDOWN_VISIBILITY_MS && exitTime - now > 0) {
                   bg = 'bg-[#2E1A0A]/90';
                   border = 'border-[#FFB800]/60';
                   statusText = '🟡 WAIT';

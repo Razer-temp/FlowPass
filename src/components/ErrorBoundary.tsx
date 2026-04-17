@@ -1,78 +1,70 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+/**
+ * FlowPass — ErrorBoundary Component
+ *
+ * A class-based React error boundary that catches unhandled JavaScript
+ * errors in the component tree and displays a user-friendly fallback UI
+ * instead of a white screen. Essential for production stability.
+ *
+ * @see https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary
+ */
 
-interface Props {
+import { Component, type ErrorInfo, type ReactNode } from 'react';
+
+interface ErrorBoundaryProps {
+  /** Child components to protect from crashes */
   children: ReactNode;
 }
 
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
 }
 
-/**
- * ErrorBoundary — Catches unhandled React render errors.
- *
- * Prevents full white-screen crashes by showing a friendly
- * recovery UI. Wraps the entire app in main.tsx.
- */
-export default class ErrorBoundary extends Component<Props, State> {
-  public state: State;
-  public props: Props;
-
-  constructor(props: Props) {
+export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.props = props;
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    console.error('[FlowPass] Uncaught render error:', error, errorInfo);
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error('[FlowPass ErrorBoundary] Caught error:', error, info.componentStack);
   }
 
   render(): ReactNode {
     if (this.state.hasError) {
       return (
-        <div
-          role="alert"
-          style={{
-            minHeight: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#0A0A0F',
-            color: '#ffffff',
-            fontFamily: '"DM Sans", sans-serif',
-            padding: '2rem',
-            textAlign: 'center',
-          }}
-        >
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-            Something went wrong
-          </h1>
-          <p style={{ color: '#8888AA', marginBottom: '1.5rem', maxWidth: '400px' }}>
-            An unexpected error occurred. This has been logged. Please refresh to try again.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              padding: '12px 32px',
-              backgroundColor: '#00FF87',
-              color: '#0A0A0F',
-              border: 'none',
-              borderRadius: '12px',
-              fontWeight: 700,
-              fontSize: '1rem',
-              cursor: 'pointer',
-            }}
-          >
-            Refresh Page
-          </button>
+        <div className="min-h-screen bg-background flex items-center justify-center p-8">
+          <div className="max-w-md w-full bg-surface border border-white/10 rounded-2xl p-8 text-center shadow-2xl">
+            <div className="w-16 h-16 bg-stop/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <span className="text-3xl">⚠️</span>
+            </div>
+            <h2 className="text-2xl font-heading font-bold text-white mb-2">
+              Something went wrong
+            </h2>
+            <p className="text-dim mb-6">
+              FlowPass encountered an unexpected error. Your data is safe.
+            </p>
+            {this.state.error && (
+              <div className="bg-background border border-white/5 rounded-lg p-4 mb-6 text-left">
+                <p className="text-xs text-stop font-mono break-all">
+                  {this.state.error.message}
+                </p>
+              </div>
+            )}
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full py-4 bg-white text-background font-bold rounded-lg hover:bg-white/90 transition-colors"
+            >
+              Reload FlowPass
+            </button>
+            <p className="text-xs text-dim mt-4">
+              If this persists, contact the event organiser.
+            </p>
+          </div>
         </div>
       );
     }

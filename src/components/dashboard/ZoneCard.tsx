@@ -1,15 +1,26 @@
-import React, { useState } from 'react';
+/**
+ * FlowPass — ZoneCard Dashboard Component
+ *
+ * Displays a single zone's status on the organizer dashboard with
+ * controls for hold/resume, early unlock, and exit time editing.
+ * Visual state (color, badge, icon) changes reactively based on
+ * the zone's current lifecycle status.
+ */
+
+import { useState } from 'react';
 import { motion } from 'motion/react';
-import { PauseCircle, PlayCircle, Clock, Edit2, Unlock, CheckCircle2, X } from 'lucide-react';
+import { PauseCircle, PlayCircle, Clock, Edit2, Unlock, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import type { FlowZone } from '../../types';
 
 interface ZoneCardProps {
-  zone: any;
+  /** Zone data from the database */
+  zone: FlowZone;
+  /** Index in the zone list (used for stagger animation) */
   index: number;
-  key?: React.Key;
 }
 
-export default function ZoneCard({ zone, index }: ZoneCardProps) {
+export default function ZoneCard({ zone }: ZoneCardProps) {
   const [isHolding, setIsHolding] = useState(zone.status === 'HOLD');
   const [showUnlockConfirm, setShowUnlockConfirm] = useState(false);
   const [showTimeEdit, setShowTimeEdit] = useState(false);
@@ -17,7 +28,7 @@ export default function ZoneCard({ zone, index }: ZoneCardProps) {
     new Date(zone.exit_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
   );
 
-  const handleHoldToggle = async () => {
+  const handleHoldToggle = async (): Promise<void> => {
     const newStatus = isHolding ? 'ACTIVE' : 'HOLD';
     setIsHolding(!isHolding);
     
@@ -25,11 +36,9 @@ export default function ZoneCard({ zone, index }: ZoneCardProps) {
       .from('zones')
       .update({ status: newStatus })
       .eq('id', zone.id);
-      
-    // In a real app, also update passes here
   };
 
-  const handleUnlockEarly = async () => {
+  const handleUnlockEarly = async (): Promise<void> => {
     await supabase
       .from('zones')
       .update({ status: 'ACTIVE', exit_time: new Date().toISOString() })
@@ -37,7 +46,7 @@ export default function ZoneCard({ zone, index }: ZoneCardProps) {
     setShowUnlockConfirm(false);
   };
 
-  const handleTimeUpdate = async () => {
+  const handleTimeUpdate = async (): Promise<void> => {
     const [hours, minutes] = newTime.split(':').map(Number);
     const exitDate = new Date(zone.exit_time);
     exitDate.setHours(hours, minutes, 0, 0);

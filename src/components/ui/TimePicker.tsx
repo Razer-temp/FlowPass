@@ -1,3 +1,11 @@
+/**
+ * FlowPass — TimePicker UI Component
+ *
+ * Scroll-wheel style time picker with AM/PM toggle. Internally
+ * stores 12-hour display state, commits back to parent as 24-hour
+ * HH:mm format for backend compatibility.
+ */
+
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Clock } from 'lucide-react';

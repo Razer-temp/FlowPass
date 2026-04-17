@@ -1,5 +1,5 @@
 /**
- * Google Translate Integration
+ * FlowPass — Google Translate Integration
  *
  * Adds a client-side Google Translate widget to make announcements
  * and passes accessible in any language.
@@ -8,8 +8,14 @@
  */
 
 import { useEffect } from 'react';
+import type { GoogleTranslateAPI } from '../types';
 
-export default function GoogleTranslate() {
+/**
+ * Renders the Google Translate inline widget.
+ * Lazily loads the external script on first mount and prevents
+ * duplicate injection during React Strict Mode / hot reloads.
+ */
+export default function GoogleTranslate(): React.JSX.Element {
   useEffect(() => {
     // Prevent duplicate scripts/widgets in React Strict Mode or hot reloads
     if (document.getElementById('google-translate-script')) return;
@@ -48,6 +54,6 @@ export default function GoogleTranslate() {
 declare global {
   interface Window {
     googleTranslateElementInit: () => void;
-    google: any;
+    google: GoogleTranslateAPI;
   }
 }

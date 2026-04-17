@@ -1,3 +1,10 @@
+/**
+ * FlowPass — Footer Component
+ *
+ * Site-wide footer with branding, quick navigation links,
+ * technology stack credits, and the GitHub repository link.
+ */
+
 import { Ticket, Github } from 'lucide-react';
 
 export default function Footer() {

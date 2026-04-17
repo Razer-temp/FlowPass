@@ -1,10 +1,20 @@
+/**
+ * FlowPass — GateStatus Component
+ *
+ * Displays the live status of all gates relevant to the attendee's
+ * pass. Highlights the attendee's assigned gate and shows
+ * real-time traffic conditions (Clear / Moderate / Closed).
+ */
+
 import { CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
+import type { GateDisplay } from '../../types';
 
 interface GateStatusProps {
-  gates: any[];
+  /** List of gates with live status */
+  gates: GateDisplay[];
+  /** The attendee's assigned gate name */
   userGate: string;
 }
-
 export default function GateStatus({ gates, userGate }: GateStatusProps) {
   if (!gates || gates.length === 0) return null;
 

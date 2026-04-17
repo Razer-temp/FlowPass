@@ -227,7 +227,7 @@ Rules:
 
 // ─── Response Parsing ──────────────────────────────────────────
 
-function parseAIRecommendation(text: string, input: CrowdAnalysisInput): AIRecommendation {
+function parseAIRecommendation(text: string, _input: CrowdAnalysisInput): AIRecommendation {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
   let summary = 'Crowd flow analysis complete.';

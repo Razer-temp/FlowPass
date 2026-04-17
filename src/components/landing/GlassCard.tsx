@@ -1,5 +1,12 @@
+/**
+ * FlowPass — GlassCard Landing Component
+ *
+ * Glassmorphism feature card with mouse-tracking radial
+ * spotlight effect. Used on the landing page to highlight
+ * key product capabilities.
+ */
+
 import React, { useRef, useState } from 'react';
-import { motion, HTMLMotionProps } from 'framer-motion';
 
 interface GlassCardProps {
   icon: React.ReactNode;

@@ -1,13 +1,26 @@
+/**
+ * FlowPass — PassCard Component
+ *
+ * Renders the digital exit pass card shown after registration.
+ * Displays attendee info, zone/gate assignment, QR code, and
+ * action buttons for copying/sharing the pass link.
+ */
+
 import { motion } from 'motion/react';
 import { Copy, Share2, ExternalLink, Bookmark, CheckCircle2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { FlowPass, FlowEvent, FlowZone } from '../types';
+import { COPY_FEEDBACK_DURATION_MS } from '../lib/constants';
 
 interface PassCardProps {
-  pass: any;
-  event: any;
-  zone: any;
+  /** The attendee's pass data */
+  pass: FlowPass;
+  /** The event this pass belongs to */
+  event: FlowEvent;
+  /** The zone assigned to this pass */
+  zone: FlowZone;
 }
 
 export default function PassCard({ pass, event, zone }: PassCardProps) {
@@ -15,19 +28,19 @@ export default function PassCard({ pass, event, zone }: PassCardProps) {
   const passUrl = `${window.location.origin}/pass/${pass.id}`;
   const [copied, setCopied] = useState(false);
   
-  const handleCopy = () => {
+  const handleCopy = (): void => {
     navigator.clipboard.writeText(passUrl);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION_MS);
   };
 
-  const handleOpenPass = () => {
+  const handleOpenPass = (): void => {
     // Auto-copy for convenience
     navigator.clipboard.writeText(passUrl);
     navigate(`/pass/${pass.id}`);
   };
 
-  const handleWhatsApp = () => {
+  const handleWhatsApp = (): void => {
     const text = `Hey! Here's my FlowPass for ${event.name}. My exit is scheduled for ${new Date(zone.exit_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} from ${zone.gates.join(' & ')}. ${passUrl}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
