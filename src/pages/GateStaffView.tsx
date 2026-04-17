@@ -363,20 +363,14 @@ export default function GateStaffView() {
                   }}
                   formats={['qr_code']}
                   constraints={{
-                    facingMode: 'environment',
-                    aspectRatio: 1
+                    facingMode: 'environment'
                   }}
-                  scanDelay={500}
                   onError={(err) => {
                     console.error('QR Scanner Error:', err);
                     setScannerError(err?.message || 'Failed to access camera');
                   }}
                   components={{
                     finder: true,
-                  }}
-                  styles={{
-                    container: { width: '100%', height: '100%' },
-                    video: { width: '100%', height: '100%', objectFit: 'cover' }
                   }}
                 />
                 
