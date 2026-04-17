@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 import { Megaphone, AlertTriangle, CheckCircle2, PauseCircle } from 'lucide-react';
+import GoogleTranslate from '../components/GoogleTranslate';
 
 export default function BigScreen() {
   const { eventId } = useParams();
@@ -170,8 +171,11 @@ export default function BigScreen() {
       <aside className="w-full md:w-[35%] lg:w-[30%] min-w-[320px] max-w-[500px] h-auto md:h-full shrink-0 bg-surface/40 backdrop-blur-md border-b md:border-b-0 md:border-r border-white/10 flex flex-col justify-between p-6 lg:p-10 z-10 relative shadow-[10px_0_30px_rgba(0,0,0,0.5)]">
         <div className="flex flex-col gap-6 lg:gap-10">
           {/* Header Row */}
-          <div className="flex justify-between items-center">
-            <div className="text-3xl lg:text-5xl font-timer tracking-wider text-go">🎫 FLOWPASS</div>
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="text-3xl lg:text-5xl font-timer tracking-wider text-go mb-2">🎫 FLOWPASS</div>
+              <GoogleTranslate />
+            </div>
             <div className="flex items-center gap-2 bg-stop/20 text-stop px-3 py-1 lg:px-4 lg:py-2 rounded-full border border-stop/30 shadow-[0_0_15px_rgba(255,59,59,0.2)]">
               <div className="w-3 h-3 rounded-full bg-stop animate-pulse" />
               <span className="text-xs lg:text-sm font-bold tracking-widest hidden sm:block">EXIT ACTIVE</span>

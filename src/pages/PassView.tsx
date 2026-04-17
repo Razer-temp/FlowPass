@@ -8,6 +8,7 @@ import GateStatus from '../components/pass/GateStatus';
 import AnnouncementFeed from '../components/pass/AnnouncementFeed';
 import HoldToConfirmButton from '../components/pass/HoldToConfirmButton';
 import { X } from 'lucide-react';
+import GoogleTranslate from '../components/GoogleTranslate';
 
 export default function PassView() {
   const { passId } = useParams();
@@ -165,9 +166,10 @@ export default function PassView() {
 
   return (
     <div className="min-h-screen bg-background text-white pb-12">
-      {/* Navbar (Logo only) */}
-      <nav className="p-6 flex justify-center border-b border-white/5 bg-surface/50 backdrop-blur-md sticky top-0 z-40">
+      {/* Navbar */}
+      <nav className="p-4 md:p-6 flex justify-between items-center border-b border-white/5 bg-surface/50 backdrop-blur-md sticky top-0 z-40">
         <div className="font-timer tracking-widest text-xl text-go">🎫 FLOWPASS</div>
+        <GoogleTranslate />
       </nav>
 
       {/* Brightness Tip */}

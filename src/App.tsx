@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import LandingPage from './pages/LandingPage';
 import CreateEvent from './pages/CreateEvent';
 import OrganizerDashboard from './pages/OrganizerDashboard';
@@ -11,6 +12,7 @@ import SuperAdminHQ from './pages/SuperAdminHQ';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
+import { trackPageView } from './lib/analytics';
 
 function AppContent() {
   const location = useLocation();
@@ -21,6 +23,11 @@ function AppContent() {
   const isHQ = location.pathname.startsWith('/hq');
 
   const hideNavFooter = isScreen || isRegister || isPass || isGate || isHQ;
+
+  // Track page views in Google Analytics
+  useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
 
   return (
     <div className={`min-h-screen flex flex-col bg-background text-white font-body selection:bg-go/30 ${isScreen ? 'cursor-none overflow-hidden' : ''}`}>

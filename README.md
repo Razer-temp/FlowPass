@@ -52,10 +52,22 @@ Zone B unlocks after gap → Zone B passes flip 🟢
 | Frontend | React 19 + Vite + TypeScript |
 | Styling | Tailwind CSS 4 |
 | Database | Supabase (Postgres + Realtime) |
-| Animation | Framer Motion |
-| QR Codes | qrcode.react |
-| Deployment | Google Cloud Run (Docker + nginx) |
-| Testing | Vitest (24 unit tests) |
+| AI / LLM | **Google Gemini 2.0 Flash** (`@google/genai`) |
+| Analytics | **Google Analytics 4** |
+| Accessibility | **Google Translate API** |
+| Typography | **Google Fonts** |
+| Deployment | **Google Cloud Run** (Docker + nginx) |
+| Testing | Vitest (49 unit tests) |
+
+## ☁️ Google Services Integration (100% Native)
+
+FlowPass heavily leverages the Google ecosystem to provide enterprise-grade reliability and intelligent features on the free tier:
+
+1. **🤖 Google Gemini AI (Core Feature)**: Used in the Organizer Dashboard for the **AI Crowd Advisor** (analyzing live zone flow, gate statuses, and providing dynamic safety scoring) and for **Smart Announcement Generation** (crafting context-aware PA announcements).
+2. **📊 Google Analytics 4**: Deep client-side event tracking across the application (`event_created`, `pass_scanned`, `gate_status_updated`, `announcement_sent`).
+3. **🌐 Google Translate**: Native integration on the `BigScreen` and attendees' `PassView`, allowing international crowds to read live exit instructions in their native language seamlessly.
+4. **☁️ Google Cloud Run**: The entire application is containerized via Docker and deployed automatically to Google Cloud Run, ensuring robust auto-scaling to handle sudden spikes when thousands of attendees open their passes simultaneously.
+5. **🔤 Google Fonts**: utilizing Syne, DM Sans, JetBrains Mono, and Bebas Neue.
 
 ## 🏗 Architecture
 

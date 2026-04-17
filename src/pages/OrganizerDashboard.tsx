@@ -17,6 +17,7 @@ import ZoneCard from '../components/dashboard/ZoneCard';
 import GatePanel from '../components/dashboard/GatePanel';
 import AnnouncementComposer from '../components/dashboard/AnnouncementComposer';
 import ActivityLog from '../components/dashboard/ActivityLog';
+import AIAdvisorPanel from '../components/dashboard/AIAdvisorPanel';
 import { seedSampleData } from '../lib/seedData';
 
 export default function OrganizerDashboard() {
@@ -370,8 +371,21 @@ export default function OrganizerDashboard() {
               {mobileTab === 'controls' && (
                 <section className="space-y-6">
                   <div>
+                    <h2 className="text-lg font-bold mb-3">AI Crowd Advisor</h2>
+                    <AIAdvisorPanel
+                      eventName={event.name}
+                      venue={event.venue}
+                      totalCrowd={totalPasses}
+                      exitedCount={exitedCount}
+                      remainingCount={remainingCount}
+                      zones={zones}
+                      gates={gates}
+                      isPaused={isPaused}
+                    />
+                  </div>
+                  <div>
                     <h2 className="text-lg font-bold mb-3">Announcements</h2>
-                    <AnnouncementComposer eventId={event.id} zones={zones} />
+                    <AnnouncementComposer eventId={event.id} zones={zones} eventName={event.name} venue={event.venue} totalCrowd={totalPasses} exitedCount={exitedCount} />
                   </div>
                 </section>
               )}
@@ -449,19 +463,37 @@ export default function OrganizerDashboard() {
 
           </div>
 
-          {/* RIGHT COLUMN: Announcements & Logs */}
+          {/* RIGHT COLUMN: AI Advisor, Announcements & Logs */}
           <div className="space-y-8">
+
+            {/* ⑤ AI CROWD ADVISOR — Powered by Google Gemini */}
+            <section>
+              <div className="mb-4">
+                <h2 className="text-2xl font-bold">AI Crowd Advisor</h2>
+                <p className="text-dim text-sm">Real-time safety analysis powered by Google Gemini</p>
+              </div>
+              <AIAdvisorPanel
+                eventName={event.name}
+                venue={event.venue}
+                totalCrowd={totalPasses}
+                exitedCount={exitedCount}
+                remainingCount={remainingCount}
+                zones={zones}
+                gates={gates}
+                isPaused={isPaused}
+              />
+            </section>
             
-            {/* ⑤ BROADCAST ANNOUNCEMENT */}
+            {/* ⑥ BROADCAST ANNOUNCEMENT */}
             <section>
               <div className="mb-4">
                 <h2 className="text-2xl font-bold">Live Announcements</h2>
                 <p className="text-dim text-sm">Every attendee sees your message in under 2 seconds.</p>
               </div>
-              <AnnouncementComposer eventId={event.id} zones={zones} />
+              <AnnouncementComposer eventId={event.id} zones={zones} eventName={event.name} venue={event.venue} totalCrowd={totalPasses} exitedCount={exitedCount} />
             </section>
 
-            {/* ⑥ LIVE ACTIVITY LOG */}
+            {/* ⑦ LIVE ACTIVITY LOG */}
             <section>
               <div className="mb-4 flex items-center justify-between">
                 <div>

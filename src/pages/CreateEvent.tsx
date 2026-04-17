@@ -12,6 +12,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { sanitizeEventField, sanitizePin } from '../lib/sanitize';
 import DatePicker from '../components/ui/DatePicker';
 import TimePicker from '../components/ui/TimePicker';
+import { trackEvent } from '../lib/analytics';
 
 interface EventDraft {
   eventName: string;
@@ -158,6 +159,13 @@ export default function CreateEvent() {
       if (zonesError) throw zonesError;
 
       // Success!
+      trackEvent({
+        action: 'event_created',
+        category: 'engagement',
+        label: eventData.name,
+        value: Number(draft.totalCrowd)
+      });
+
       setEventId(eventData.id);
       localStorage.removeItem('flowpass_draft');
       setStep(4);

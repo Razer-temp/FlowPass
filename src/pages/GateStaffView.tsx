@@ -5,6 +5,7 @@ import type { FlowEvent, FlowZone, FlowPass, ValidationResult, ShiftStats } from
 import { CheckCircle2, XCircle, AlertTriangle, Clock, Camera, WifiOff, ArrowLeft, PauseCircle, X } from 'lucide-react';
 import QrScanner from '../components/QrScanner';
 import useWakeLock from '../hooks/useWakeLock';
+import { trackEvent } from '../lib/analytics';
 
 export default function GateStaffView() {
   const { eventId, gateId } = useParams();
@@ -238,6 +239,13 @@ export default function GateStaffView() {
         action: `Pass scanned at ${decodedGateId} ${isOverride ? '(Override)' : ''}`,
         type: 'PASS'
       });
+      
+      trackEvent({
+        action: 'pass_scanned',
+        category: 'gate_ops',
+        label: decodedGateId,
+        value: isOverride ? 0 : 1
+      });
     } else {
       // In a real app, queue this in localStorage to sync later
       console.log("Offline: Pass validation queued.");
@@ -262,6 +270,12 @@ export default function GateStaffView() {
           event_id: eventId,
           action: `Gate ${decodedGateId} reported status: ${status}`,
           type: 'SYSTEM'
+        });
+
+        trackEvent({
+          action: 'gate_status_updated',
+          category: 'gate_ops',
+          label: status
         });
       } catch (e) {
         console.error('Failed to report gate status:', e);
