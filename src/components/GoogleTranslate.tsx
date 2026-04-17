@@ -74,14 +74,27 @@ export default function GoogleTranslate({ variant = 'visible', targetLanguage = 
     const domain = window.location.hostname;
     
     if (targetLanguage === 'en') {
-      // Clear cookies to restore original
+      // 1. Clear cookies to ensure it stays English on a hard reload
       document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
       document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; domain=${domain}; path=/;`;
-    } else {
-      // Force native Google translation context
-      document.cookie = `googtrans=/en/${targetLanguage}; path=/;`;
-      document.cookie = `googtrans=/en/${targetLanguage}; domain=${domain}; path=/;`;
-    }
+      
+      // 2. Trigger the Google-injected Restore button to revert the DOM natively
+      const iframe = document.querySelector('iframe.goog-te-banner-frame') as HTMLIFrameElement;
+      if (iframe && iframe.contentWindow) {
+        // Attempt to find the restore button inside Google's hidden iframe
+        const restoreBtn = iframe.contentWindow.document.getElementById(':1.restore') as HTMLElement;
+        if (restoreBtn) {
+          restoreBtn.click();
+        }
+      }
+      
+      // We do NOT wipe the script for English, because the restoreBtn click instantly reverts the DOM!
+      return;
+    } 
+    
+    // For all other languages, force native Google translation context
+    document.cookie = `googtrans=/en/${targetLanguage}; path=/;`;
+    document.cookie = `googtrans=/en/${targetLanguage}; domain=${domain}; path=/;`;
 
     // Wipe cached Google object to force a native reload from the new cookie state
     delete (window as any).google;
