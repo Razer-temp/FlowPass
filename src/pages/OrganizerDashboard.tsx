@@ -28,6 +28,7 @@ import GatePanel from '../components/dashboard/GatePanel';
 import AnnouncementComposer from '../components/dashboard/AnnouncementComposer';
 import ActivityLog from '../components/dashboard/ActivityLog';
 import AIAdvisorPanel from '../components/dashboard/AIAdvisorPanel';
+import VenueLanguagePanel from '../components/dashboard/VenueLanguagePanel';
 import { seedSampleData } from '../lib/seedData';
 
 export default function OrganizerDashboard() {
@@ -382,6 +383,10 @@ export default function OrganizerDashboard() {
               {mobileTab === 'controls' && (
                 <section className="space-y-6">
                   <div>
+                    <h2 className="text-lg font-bold mb-3">Venue Language</h2>
+                    <VenueLanguagePanel eventId={event.id} gateStatus={event.gate_status || {}} />
+                  </div>
+                  <div>
                     <h2 className="text-lg font-bold mb-3">AI Crowd Advisor</h2>
                     <AIAdvisorPanel
                       eventName={event.name}
@@ -495,7 +500,12 @@ export default function OrganizerDashboard() {
               />
             </section>
             
-            {/* ⑥ BROADCAST ANNOUNCEMENT */}
+            {/* ⑥ VENUE LANGUAGE */}
+            <section>
+              <VenueLanguagePanel eventId={event.id} gateStatus={event.gate_status || {}} />
+            </section>
+            
+            {/* ⑦ BROADCAST ANNOUNCEMENT */}
             <section>
               <div className="mb-4">
                 <h2 className="text-2xl font-bold">Live Announcements</h2>

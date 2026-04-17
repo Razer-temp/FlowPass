@@ -85,3 +85,14 @@ body {
 .goog-te-gadget .goog-te-combo:focus {
   border-color: var(--color-go);
 }
+
+/* Ghost Mode Overrides (Big Screen Remote Control) */
+.google-translate-hidden {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+.google-translate-hidden .goog-te-combo {
+  display: none !important;
+}
