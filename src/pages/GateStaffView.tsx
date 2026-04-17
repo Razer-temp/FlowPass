@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { FlowEvent, FlowZone, FlowPass, ValidationResult, ShiftStats } from '../types';
 import { CheckCircle2, XCircle, AlertTriangle, Clock, Camera, WifiOff, ArrowLeft, PauseCircle, X } from 'lucide-react';
-import { Scanner } from '@yudiel/react-qr-scanner';
+import QrScanner from '../components/QrScanner';
 import useWakeLock from '../hooks/useWakeLock';
 
 export default function GateStaffView() {
@@ -316,7 +316,11 @@ export default function GateStaffView() {
                   <p>• Try reloading the page</p>
                 </div>
                 <button 
-                  onClick={() => setScannerError(null)}
+                  onClick={() => {
+                    setScannerError(null);
+                    setShowScanner(false);
+                    setTimeout(() => setShowScanner(true), 100);
+                  }}
                   className="w-full py-4 bg-white text-background font-bold rounded-xl"
                 >
                   Try Again
@@ -325,81 +329,54 @@ export default function GateStaffView() {
             ) : (
               <div className="w-full max-w-md aspect-square overflow-hidden relative border-2 border-white/10 rounded-3xl">
                 {isProcessingScan && (
-                  <div className="absolute inset-0 z-20 bg-go/20 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in zoom-in duration-300">
+                  <div className="absolute inset-0 z-20 bg-go/20 backdrop-blur-sm flex flex-col items-center justify-center">
                     <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mb-4" />
                     <p className="font-bold text-lg">Validating Pass...</p>
                   </div>
                 )}
                 
-                <Scanner
-                  onScan={(result) => {
+                <QrScanner
+                  onScan={(decodedText) => {
                     if (isProcessingScan) return;
-                    if (result && result.length > 0) {
-                      const rawValue = result[0].rawValue;
-                      console.log('Scanned payload:', rawValue);
+                    console.log('Scanned payload:', decodedText);
 
-                      // Robust ID extraction: Look for anything after /pass/ or just the UUID-like pattern
-                      let extractedId = '';
-                      
-                      if (rawValue.includes('/pass/')) {
-                        // Extract everything after /pass/ until a ? or # or end of string
-                        const match = rawValue.match(/\/pass\/([^\/\?\#]+)/);
-                        if (match && match[1]) {
-                          extractedId = match[1];
+                    let extractedId = '';
+                    
+                    if (decodedText.includes('/pass/')) {
+                      const match = decodedText.match(/\/pass\/([^\/\?\#]+)/);
+                      if (match && match[1]) {
+                        extractedId = match[1];
+                      }
+                    } else if (decodedText.length > 30) {
+                      extractedId = decodedText.trim();
+                    } else if (decodedText.trim().length >= 4) {
+                      extractedId = decodedText.trim();
+                    }
+
+                    if (extractedId) {
+                      setIsProcessingScan(true);
+                      setTimeout(() => {
+                        const fullIdPass = passesCache[extractedId];
+                        if (fullIdPass) {
+                          setInputCode(extractedId.slice(-6).toUpperCase());
+                          setShowScanner(false);
+                          setIsProcessingScan(false);
+                          handleValidate(undefined, extractedId.slice(-6).toUpperCase());
+                        } else {
+                          const shortCode = extractedId.slice(-6).toUpperCase();
+                          setInputCode(shortCode);
+                          setShowScanner(false);
+                          setIsProcessingScan(false);
+                          handleValidate(undefined, shortCode);
                         }
-                      } else if (rawValue.length > 30) {
-                        // Likely a raw UUID
-                        extractedId = rawValue.trim();
-                      } else if (rawValue.trim().length >= 4) {
-                        // Short code directly scanned
-                        extractedId = rawValue.trim();
-                      }
-
-                      if (extractedId) {
-                        setIsProcessingScan(true);
-                        // Brief delay for visual feedback
-                        setTimeout(() => {
-                          // Try direct match with full UUID first, then fall back to short code
-                          const fullIdPass = passesCache[extractedId];
-                          if (fullIdPass) {
-                            setInputCode(extractedId.slice(-6).toUpperCase());
-                            setShowScanner(false);
-                            setIsProcessingScan(false);
-                            handleValidate(undefined, extractedId.slice(-6).toUpperCase());
-                          } else {
-                            const shortCode = extractedId.slice(-6).toUpperCase();
-                            setInputCode(shortCode);
-                            setShowScanner(false);
-                            setIsProcessingScan(false);
-                            handleValidate(undefined, shortCode);
-                          }
-                        }, 600);
-                      }
+                      }, 400);
                     }
                   }}
-                  formats={['qr_code']}
-                  constraints={{
-                    facingMode: 'environment'
-                  }}
-                  scanDelay={300}
-                  onError={(err) => {
-                    console.error('QR Scanner Error:', err);
-                    setScannerError(err?.message || 'Failed to access camera');
-                  }}
-                  components={{
-                    finder: true,
-                  }}
-                  styles={{
-                    container: { width: '100%', height: '100%' },
-                    video: { width: '100%', height: '100%', objectFit: 'cover' as const }
+                  onError={(errMsg) => {
+                    console.error('QR Scanner Error:', errMsg);
+                    setScannerError(errMsg);
                   }}
                 />
-                
-                {/* Custom Overlay Lines */}
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  <div className="w-48 h-48 border-2 border-white/20 rounded-3xl" />
-                  <div className="absolute w-full h-0.5 bg-go/30 animate-scan-line top-1/2 -translate-y-1/2" />
-                </div>
               </div>
             )}
           </div>
