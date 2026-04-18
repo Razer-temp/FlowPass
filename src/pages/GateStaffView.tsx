@@ -48,6 +48,11 @@ export default function GateStaffView() {
   const [scannerError, setScannerError] = useState<string | null>(null);
   const [isProcessingScan, setIsProcessingScan] = useState(false);
 
+  // Incident State
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
+  const [isSubmittingIncident, setIsSubmittingIncident] = useState(false);
+  const [incidentSubmitSuccess, setIncidentSubmitSuccess] = useState(false);
+
   // Zero-drift clock for countdowns
   const [now, setNow] = useState(Date.now());
 
@@ -298,6 +303,60 @@ export default function GateStaffView() {
     }
   };
 
+  const submitIncident = async (issueType: string) => {
+    setIsSubmittingIncident(true);
+    try {
+      const url = import.meta.env.VITE_INCIDENT_FORM_URL;
+      const gateIdField = import.meta.env.VITE_FORM_ENTRY_GATE_ID;
+      const eventIdField = import.meta.env.VITE_FORM_ENTRY_EVENT_ID;
+      const issueTypeField = import.meta.env.VITE_FORM_ENTRY_ISSUE_TYPE;
+
+      if (!url) {
+        // Fallback or warning if missing env config
+        console.warn("No VITE_INCIDENT_FORM_URL provided.");
+      } else {
+        const formData = new URLSearchParams();
+        if (gateIdField) formData.append(gateIdField, decodedGateId);
+        if (eventIdField) formData.append(eventIdField, eventId || 'UNKNOWN');
+        if (issueTypeField) formData.append(issueTypeField, issueType);
+        
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: formData.toString()
+        });
+      }
+
+      triggerFlash('bg-green-500');
+      setIncidentSubmitSuccess(true);
+      
+      // Also log locally or to our own supabase activity log for redundancy
+      if (!isOffline) {
+        await supabase.from('activity_log').insert({
+          event_id: eventId,
+          action: `Incident reported at ${decodedGateId}: ${issueType}`,
+          type: 'SYSTEM'
+        });
+      }
+      
+      setShiftStats(s => ({ ...s, reports: s.reports + 1, lastReport: `${new Date().toLocaleTimeString()} — Incident: ${issueType}` }));
+      
+      setTimeout(() => {
+        setIncidentSubmitSuccess(false);
+        setShowIncidentModal(false);
+      }, 1500);
+
+    } catch (e) {
+      console.error('Failed to submit incident to Google Forms:', e);
+      triggerFlash('bg-red-500');
+    } finally {
+      setIsSubmittingIncident(false);
+    }
+  };
+
   if (!event) {
     return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-8 h-8 border-2 border-go border-t-transparent rounded-full animate-spin" /></div>;
   }
@@ -310,6 +369,74 @@ export default function GateStaffView() {
       {/* Flash Overlay */}
       {flashColor && (
         <div className={`fixed inset-0 z-[60] pointer-events-none ${flashColor} opacity-50 animate-pulse`} />
+      )}
+
+      {/* Incident Modal */}
+      {showIncidentModal && (
+        <div className="fixed inset-0 z-[55] bg-black/90 p-4 flex flex-col justify-end md:justify-center backdrop-blur-md">
+          <div className="bg-surface border border-white/10 rounded-t-3xl md:rounded-3xl p-6 w-full max-w-md mx-auto relative animate-in slide-in-from-bottom pb-12 md:pb-6">
+            <button 
+              onClick={() => setShowIncidentModal(false)}
+              className="absolute top-4 right-4 p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+              disabled={isSubmittingIncident}
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+            
+            <div className="mb-6">
+              <div className="w-12 h-12 bg-stop/20 rounded-full flex items-center justify-center mb-4">
+                <AlertTriangle className="w-6 h-6 text-stop" />
+              </div>
+              <h2 className="text-2xl font-bold mb-1">Report Incident</h2>
+              <p className="text-dim text-sm">Alerts organizer instantly via Google Sheets.</p>
+            </div>
+
+            {incidentSubmitSuccess ? (
+              <div className="p-8 text-center border border-go/20 bg-go/10 rounded-2xl">
+                <CheckCircle2 className="w-12 h-12 text-go mx-auto mb-4" />
+                <h3 className="font-bold text-xl text-go mb-2">Report Sent</h3>
+                <p className="text-sm text-dim">The organizer has been notified.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <button 
+                  onClick={() => submitIncident('Medical Emergency')}
+                  disabled={isSubmittingIncident}
+                  className="w-full p-4 bg-[#2e0a0a] border border-stop/30 text-left font-bold rounded-xl flex justify-between items-center active:scale-[0.98] transition-transform disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-3"><span className="text-xl">🚨</span> Medical Emergency</span>
+                </button>
+                <button 
+                  onClick={() => submitIncident('Gate Blocked')}
+                  disabled={isSubmittingIncident}
+                  className="w-full p-4 bg-[#2e1a0a] border border-amber-500/30 text-left font-bold rounded-xl flex justify-between items-center active:scale-[0.98] transition-transform disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-3"><span className="text-xl">🚧</span> Gate Blocked</span>
+                </button>
+                <button 
+                  onClick={() => submitIncident('Spill / Hazard')}
+                  disabled={isSubmittingIncident}
+                  className="w-full p-4 bg-surface border border-white/10 text-left font-bold rounded-xl flex justify-between items-center active:scale-[0.98] transition-transform disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-3"><span className="text-xl">💦</span> Spill / Hazard</span>
+                </button>
+                <button 
+                  onClick={() => submitIncident('Technical Issue')}
+                  disabled={isSubmittingIncident}
+                  className="w-full p-4 bg-surface border border-white/10 text-left font-bold rounded-xl flex justify-between items-center active:scale-[0.98] transition-transform disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-3"><span className="text-xl">🔌</span> Scanner / Technical Issue</span>
+                </button>
+                
+                {isSubmittingIncident && (
+                  <div className="text-center text-sm text-dim animate-pulse pt-4">
+                    Sending securely to Google Sheets...
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* QR Scanner Overlay */}
@@ -768,7 +895,18 @@ export default function GateStaffView() {
           )}
         </section>
 
-        {/* ⑥ SHIFT SUMMARY */}
+        {/* ⑥ REPORT INCIDENT */}
+        <section>
+          <button 
+            onClick={() => setShowIncidentModal(true)}
+            className="w-full py-4 bg-stop/10 border-2 border-stop text-stop font-bold text-lg rounded-2xl flex items-center justify-center gap-2 transition-transform active:scale-95 hover:bg-stop/20"
+          >
+            <AlertTriangle className="w-5 h-5" /> Report Incident (Live)
+          </button>
+          <p className="text-center text-xs text-dim mt-3 px-4">Instantly pings Organizer's Google Sheet.</p>
+        </section>
+
+        {/* ⑦ SHIFT SUMMARY */}
         <section className="bg-surface border border-white/10 rounded-2xl p-6 text-sm">
           <h3 className="font-bold text-dim tracking-widest mb-4 uppercase">Your Shift — {decodedGateId}</h3>
           <div className="space-y-2">
