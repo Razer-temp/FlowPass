@@ -25,17 +25,23 @@ ENV VITE_GA_MEASUREMENT_ID=$VITE_GA_MEASUREMENT_ID
 # Build the project
 RUN npm run build
 
-# Stage 2: Serve the application with Nginx
-FROM nginx:stable-alpine
+# Stage 2: Serve the application with Express
+FROM node:20-slim
 
-# Copy the custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-# Copy the build output from the build stage to the nginx html directory
-COPY --from=build /app/dist /usr/share/nginx/html
+# Copy package and install production dependencies
+COPY package*.json ./
+RUN npm install --omit=dev
+
+# Copy the server file
+COPY server.js ./
+
+# Copy the build output from the build stage
+COPY --from=build /app/dist ./dist
 
 # Expose port 8080 (default for Cloud Run)
 EXPOSE 8080
 
-# Start Nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start Express server
+CMD ["node", "server.js"]

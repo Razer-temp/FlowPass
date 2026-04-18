@@ -158,24 +158,7 @@ export interface GateReassignmentAlert {
   newGate: string;
 }
 
-// ─── Google Translate Widget ───────────────────────────────────
-
-/** Minimal type for the Google Translate client-side widget API */
-export interface GoogleTranslateAPI {
-  translate: {
-    TranslateElement: {
-      new (
-        options: {
-          pageLanguage: string;
-          layout: unknown;
-          autoDisplay: boolean;
-        },
-        elementId: string
-      ): unknown;
-      InlineLayout: { SIMPLE: unknown };
-    };
-  };
-}
+// ─── Google Translate Widget (Removed) ───────────────────────────
 
 // ─── Analytics ─────────────────────────────────────────────────
 
