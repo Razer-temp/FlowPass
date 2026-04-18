@@ -83,3 +83,14 @@ export const MAX_LOGIN_ATTEMPTS = 3;
 
 /** Number of days shown in the network load chart */
 export const CHART_DAYS = 7;
+
+// ─── Firebase Cloud Messaging ──────────────────────────────────
+
+/** Default title for zone-unlock push notifications */
+export const FCM_ZONE_UNLOCK_TITLE = '🟢 EXIT NOW — FlowPass';
+
+/** Maximum FCM tokens per multicast batch (FCM limit is 500) */
+export const FCM_MULTICAST_BATCH_SIZE = 500;
+
+/** Timeout (ms) for the /api/notify-zone server call */
+export const FCM_NOTIFY_TIMEOUT_MS = 10_000;

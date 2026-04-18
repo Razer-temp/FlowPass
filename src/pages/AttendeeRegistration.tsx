@@ -15,6 +15,7 @@ import { assignZoneFromSeat } from '../lib/zoneAlgorithm';
 import { sanitizeName, sanitizeSeat, isValidUUID } from '../lib/sanitize';
 import { CheckCircle2, Ticket, MapPin, ShieldCheck, AlertCircle } from 'lucide-react';
 import PassCard from '../components/PassCard';
+import NotificationBell from '../components/pass/NotificationBell';
 
 export default function AttendeeRegistration() {
   const { eventId } = useParams();
@@ -192,8 +193,13 @@ export default function AttendeeRegistration() {
         </div>
 
         {isComplete ? null : generatedPass ? (
-          /* ④ INSTANT PASS */
-          <PassCard pass={generatedPass} event={event} zone={zones.find(z => z.id === generatedPass.zone_id) ?? detectionResult?.zone ?? zones[0]} />
+          /* ④ INSTANT PASS + NOTIFICATION OPT-IN */
+          <div className="space-y-4">
+            <PassCard pass={generatedPass} event={event} zone={zones.find(z => z.id === generatedPass.zone_id) ?? detectionResult?.zone ?? zones[0]} />
+
+            {/* Firebase Cloud Messaging — Push Notification Opt-In */}
+            <NotificationBell passId={generatedPass.id} />
+          </div>
         ) : (
           /* ② SMART FORM */
           <form onSubmit={handleSubmit} className="space-y-5">

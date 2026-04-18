@@ -8,6 +8,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import type { FlowPass, FlowEvent, FlowZone, FlowAnnouncement, GateDisplay } from '../types';
 import useWakeLock from '../hooks/useWakeLock';
@@ -18,6 +19,8 @@ import HoldToConfirmButton from '../components/pass/HoldToConfirmButton';
 import VenueMap from '../components/pass/VenueMap';
 import AddToCalendarButton from '../components/pass/AddToCalendarButton';
 import AddToWalletButton from '../components/pass/AddToWalletButton';
+import NotificationBell from '../components/pass/NotificationBell';
+import { onForegroundMessage } from '../lib/firebase';
 import { REALTIME_POLL_INTERVAL_MS } from '../lib/constants';
 
 export default function PassView() {
@@ -31,6 +34,7 @@ export default function PassView() {
   const [isLoading, setIsLoading] = useState(true);
   const [showTip, setShowTip] = useState(false);
   const [hasReassigned, setHasReassigned] = useState(false);
+  const [pushToast, setPushToast] = useState<{ title: string; body: string } | null>(null);
 
   // Prevent screen sleep so QR code stays visible for gate staff
   useWakeLock();
@@ -134,12 +138,20 @@ export default function PassView() {
         console.log('[PassView] announcements subscription:', status);
       });
 
+    // Subscribe to foreground FCM messages for in-app toast
+    const unsubFCM = onForegroundMessage((msg) => {
+      setPushToast({ title: msg.title, body: msg.body });
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      setTimeout(() => setPushToast(null), 6000);
+    });
+
     return () => {
       clearInterval(fallbackPoll);
       supabase.removeChannel(eventSub);
       supabase.removeChannel(passSub);
       supabase.removeChannel(zoneSub);
       supabase.removeChannel(annSub);
+      unsubFCM();
     };
   }, [passId]);
 
@@ -208,6 +220,26 @@ export default function PassView() {
 
         {/* 2. Gate Status */}
         <GateStatus gates={gates} userGate={pass.gate_id} />
+
+        {/* 2.5 Push Notification Opt-In — Firebase Cloud Messaging */}
+        <div className="mt-6">
+          <NotificationBell passId={pass.id} />
+        </div>
+
+        {/* Foreground Push Toast */}
+        <AnimatePresence>
+          {pushToast && (
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              className="fixed top-4 left-4 right-4 z-50 bg-go/95 text-background rounded-2xl p-4 shadow-2xl shadow-go/30 backdrop-blur-md"
+            >
+              <p className="font-black text-lg">{pushToast.title}</p>
+              <p className="text-sm font-medium opacity-90">{pushToast.body}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* 3. Google Services Integration */}
         <div className="mt-6 space-y-1">

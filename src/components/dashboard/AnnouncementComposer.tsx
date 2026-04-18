@@ -90,6 +90,19 @@ export default function AnnouncementComposer({ eventId, zones, eventName, venue,
         label: targetZone
       });
 
+      // TRIGGER FCM PUSH FOR ANNOUNCEMENT
+      fetch('/api/notify-zone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventId: eventId,
+          zoneId: targetZone,
+          type: 'announcement',
+          title: `📣 Announcement — ${eventName || 'FlowPass'}`,
+          body: message.trim()
+        }),
+      }).catch(console.error);
+
       setMessage('');
     } catch (error) {
       console.error("Failed to send announcement", error);

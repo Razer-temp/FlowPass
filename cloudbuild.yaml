@@ -14,6 +14,18 @@ steps:
       - 'VITE_GEMINI_API_KEY=$_VITE_GEMINI_API_KEY'
       - '--build-arg'
       - 'VITE_GOOGLE_MAPS_API_KEY=$_VITE_GOOGLE_MAPS_API_KEY'
+      - '--build-arg'
+      - 'VITE_FIREBASE_API_KEY=$_VITE_FIREBASE_API_KEY'
+      - '--build-arg'
+      - 'VITE_FIREBASE_PROJECT_ID=$_VITE_FIREBASE_PROJECT_ID'
+      - '--build-arg'
+      - 'VITE_FIREBASE_MESSAGING_SENDER_ID=$_VITE_FIREBASE_MESSAGING_SENDER_ID'
+      - '--build-arg'
+      - 'VITE_FIREBASE_APP_ID=$_VITE_FIREBASE_APP_ID'
+      - '--build-arg'
+      - 'VITE_FIREBASE_VAPID_KEY=$_VITE_FIREBASE_VAPID_KEY'
+      - '--build-arg'
+      - 'FIREBASE_PROJECT_ID=$_FIREBASE_PROJECT_ID'
       - '.'
 
   # Push the container image to Container Registry
@@ -45,6 +57,12 @@ substitutions:
   _VITE_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6aWpvcHd6eWVka2xhaHd2bnF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwMDI0NDAsImV4cCI6MjA5MTU3ODQ0MH0.4B-21lZsQ3V1IOne-42N7wfPreJ1-P3L8eSuK9BJEQw"
   _VITE_GEMINI_API_KEY: ""
   _VITE_GOOGLE_MAPS_API_KEY: ""
+  _VITE_FIREBASE_API_KEY: ""
+  _VITE_FIREBASE_PROJECT_ID: ""
+  _VITE_FIREBASE_MESSAGING_SENDER_ID: ""
+  _VITE_FIREBASE_APP_ID: ""
+  _VITE_FIREBASE_VAPID_KEY: ""
+  _FIREBASE_PROJECT_ID: ""
 
 options:
   logging: CLOUD_LOGGING_ONLY

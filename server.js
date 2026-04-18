@@ -142,6 +142,178 @@ app.post('/api/tts', async (req, res) => {
   }
 });
 
+// ─── Firebase Cloud Messaging — Zone Unlock Notifications ──────
+// Uses the FCM HTTP v1 API directly (same pattern as TTS above).
+// No firebase-admin dependency — just fetch() + GCP default credentials.
+// Free: Unlimited messages on all Firebase plans.
+
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID || '';
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
+
+app.post('/api/notify-zone', async (req, res) => {
+  try {
+    const { eventId, zoneId, zoneName, gate, type, title, body } = req.body;
+
+    if (!eventId || !zoneId) {
+      return res.status(400).json({ error: 'Missing eventId or zoneId.' });
+    }
+
+    if (!FIREBASE_PROJECT_ID) {
+      return res.status(503).json({
+        error: 'Firebase Cloud Messaging is not configured.',
+        hint: 'Set FIREBASE_PROJECT_ID environment variable to enable push notifications.'
+      });
+    }
+
+    // Step 1: Get GCP access token (same pattern as TTS)
+    let accessToken = '';
+    try {
+      const tokenResponse = await fetch(
+        'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token',
+        { headers: { 'Metadata-Flavor': 'Google' } }
+      );
+      if (tokenResponse.ok) {
+        const tokenData = await tokenResponse.json();
+        accessToken = tokenData.access_token;
+      }
+    } catch {
+      // Not on Google Cloud — metadata server unavailable
+    }
+
+    if (!accessToken) {
+      return res.status(503).json({
+        error: 'FCM push is only available in production (Cloud Run).',
+        hint: 'The app will use in-browser realtime updates as fallback.'
+      });
+    }
+
+    // Step 2: Query Supabase for all FCM tokens in this zone (or all zones if ALL)
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return res.status(503).json({ error: 'Supabase credentials not configured on server.' });
+    }
+
+    const zoneQuery = zoneId === 'ALL' ? `event_id=eq.${eventId}` : `zone_id=eq.${zoneId}`;
+    const supabaseQuery = await fetch(
+      `${SUPABASE_URL}/rest/v1/passes?${zoneQuery}&fcm_token=not.is.null&select=id,fcm_token,gate_id,attendee_name`,
+      {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!supabaseQuery.ok) {
+      console.error('[Server] Supabase query failed:', await supabaseQuery.text());
+      return res.status(502).json({ error: 'Failed to query pass tokens from database.' });
+    }
+
+    const passes = await supabaseQuery.json();
+    const tokens = passes.map(p => p.fcm_token).filter(Boolean);
+
+    if (tokens.length === 0) {
+      return res.json({ sent: 0, message: 'No push tokens registered for this zone.' });
+    }
+
+    console.log(`[Server] Sending FCM push to ${tokens.length} devices for ${zoneName}`);
+
+    // Step 3: Send FCM notifications in batches (max 500 per request)
+    const BATCH_SIZE = 500;
+    let totalSuccess = 0;
+    let totalFailure = 0;
+    const staleTokenIds = [];
+
+    for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
+      const batch = tokens.slice(i, i + BATCH_SIZE);
+      const batchPasses = passes.slice(i, i + BATCH_SIZE);
+
+      // Send individual messages for each token (FCM v1 doesn't have multicast)
+      const sendPromises = batch.map(async (token, idx) => {
+        const pass = batchPasses[idx];
+        const passGate = pass?.gate_id || gate || 'your assigned gate';
+        const passUrl = `${process.env.APP_URL || 'https://flowpass.app'}/pass/${pass?.id || ''}`;
+
+        const fcmPayload = {
+          message: {
+            token,
+            data: {
+              title: title || `🟢 EXIT NOW — ${zoneName}`,
+              body: body || `Your zone is open! Head to ${passGate} now.`,
+              zoneId: zoneId,
+              zoneName: zoneName || 'ALL',
+              gate: passGate,
+              passUrl: passUrl,
+              type: type || 'unlock'
+            },
+            webpush: {
+              headers: { Urgency: 'high', TTL: type === 'announcement' ? '86400' : '600' },
+              fcm_options: { link: passUrl },
+            },
+          },
+        };
+
+        try {
+          const fcmResponse = await fetch(
+            `https://fcm.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/messages:send`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(fcmPayload),
+            }
+          );
+
+          if (fcmResponse.ok) {
+            totalSuccess++;
+          } else {
+            const errorBody = await fcmResponse.json().catch(() => ({}));
+            const errorCode = errorBody?.error?.details?.[0]?.errorCode || errorBody?.error?.status || '';
+
+            // Clean up stale/invalid tokens
+            if (errorCode === 'UNREGISTERED' || errorCode === 'INVALID_ARGUMENT') {
+              staleTokenIds.push(pass?.id);
+            }
+            totalFailure++;
+          }
+        } catch {
+          totalFailure++;
+        }
+      });
+
+      await Promise.all(sendPromises);
+    }
+
+    // Step 4: Clean up stale tokens from Supabase
+    if (staleTokenIds.length > 0) {
+      console.log(`[Server] Cleaning ${staleTokenIds.length} stale FCM tokens.`);
+      await fetch(
+        `${SUPABASE_URL}/rest/v1/passes?id=in.(${staleTokenIds.join(',')})`,
+        {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify({ fcm_token: null }),
+        }
+      );
+    }
+
+    console.log(`[Server] FCM results: ${totalSuccess} sent, ${totalFailure} failed, ${staleTokenIds.length} cleaned.`);
+    res.json({ sent: totalSuccess, failed: totalFailure, cleaned: staleTokenIds.length });
+
+  } catch (error) {
+    console.error('[Server] FCM notify-zone failed:', error.message || error);
+    res.status(500).json({ error: 'Push notification dispatch failed.' });
+  }
+});
+
 // Serve the Vite static build
 app.use(express.static(path.join(__dirname, 'dist')));
 

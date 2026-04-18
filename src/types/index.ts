@@ -64,6 +64,8 @@ export interface FlowPass {
   status: PassStatus;
   exited_at?: string | null;
   created_at?: string;
+  /** Firebase Cloud Messaging token for push notifications (nullable — opt-in) */
+  fcm_token?: string | null;
 }
 
 /** Supabase `announcements` table row */

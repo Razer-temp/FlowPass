@@ -204,6 +204,8 @@ export default function OrganizerDashboard() {
                 action: `${zone.name} automatically unlocked at scheduled time`, 
                 type: 'SYSTEM'
               });
+              // Trigger FCM push to all attendees in this zone
+              sendZonePushNotification(zone);
             } catch (error) {
               console.error("Auto unlock failed", error);
             }
@@ -231,6 +233,29 @@ export default function OrganizerDashboard() {
   const remainingCount = totalPasses - exitedCount;
   const chaosScore = totalPasses > 0 ? Math.round((remainingCount / totalPasses) * 100) : 0;
 
+  /** Fire-and-forget: send FCM push notifications to all attendees in a zone */
+  const sendZonePushNotification = (zone: FlowZone) => {
+    fetch('/api/notify-zone', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventId: eventId,
+        zoneId: zone.id,
+        zoneName: zone.name,
+        gate: zone.gates?.[0] || 'your gate',
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.sent > 0) {
+          console.log(`[Dashboard] FCM push sent to ${data.sent} devices for ${zone.name}`);
+        }
+      })
+      .catch(() => {
+        // FCM is optional — silently ignore failures
+      });
+  };
+
   const handleUnlockNextZone = async () => {
     const nextWaitZone = zones.find(z => z.status === 'WAIT');
     if (!nextWaitZone) return;
@@ -238,6 +263,8 @@ export default function OrganizerDashboard() {
     await supabase.from('activity_log').insert({
       event_id: eventId, action: `${nextWaitZone.name} unlocked by organizer`, type: 'SYSTEM'
     });
+    // Trigger FCM push to all attendees in this zone
+    sendZonePushNotification(nextWaitZone);
   };
 
   const handleEndEvent = async () => {

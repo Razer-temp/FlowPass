@@ -139,9 +139,9 @@ When attendees register, a **4-stage pipeline** maps their seat to the optimal z
 
 ## ☁️ Google Services Integration
 
-## ☁️ Google Services Ecosystem (8x Integration)
+## ☁️ Google Services Ecosystem (9x Integration)
 
-FlowPass is built **Google-native**, deeply integrating 8 distinct Google services to provide enterprise-grade reliability, accessibility, and utility—while maintaining a $0 infrastructure cost footprint on the free tier.
+FlowPass is built **Google-native**, deeply integrating 9 distinct Google services to provide enterprise-grade reliability, accessibility, and utility—while maintaining a $0 infrastructure cost footprint on the free tier.
 
 ### 1. 🤖 Google Gemini AI — Core Intelligence
 - **AI Crowd Advisor** (`AIAdvisorPanel.tsx`) — Analyzes live zone flow, gate statuses, and crowd density to produce real-time safety scores (1–100) with actionable risk assessments.
@@ -172,6 +172,10 @@ Deep client-side event tracking across the entire application lifecycle measurin
 
 ### 8. ☁️ Google Cloud Run — Serverless Deployment & Fonts
 Containerized via a multi-stage `Dockerfile` (Node.js → nginx) and deployed automatically through Cloud Build for **Auto-scaling** and **Zero cold-start** times. Also utilizes **Google Fonts** (Syne, DM Sans, JetBrains Mono, Bebas Neue) for premium typographic hierarchy.
+
+### 9. 🔔 Firebase Cloud Messaging (FCM) — Web Push Exit Alerts
+- **Active Push Architecture** — Transforms FlowPass from a passive polling dashboard to an active safety system. Attendees opt-in to receive background push notifications via a root-scope Service Worker.
+- **Serverless Admin Dispatch** — Utilizing the GCP metadata server, the Cloud Run container transparently fetches Google credentials to invoke the FCM HTTP v1 API directly, multicasting push notifications to devices when event zones are unlocked.
 
 ---
 
