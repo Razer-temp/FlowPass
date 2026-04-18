@@ -139,9 +139,9 @@ When attendees register, a **4-stage pipeline** maps their seat to the optimal z
 
 ## ☁️ Google Services Integration
 
-## ☁️ Google Services Ecosystem (9x Integration)
+## ☁️ Google Services Ecosystem (10x Integration)
 
-FlowPass is built **Google-native**, deeply integrating 9 distinct Google services to provide enterprise-grade reliability, accessibility, and utility—while maintaining a $0 infrastructure cost footprint on the free tier.
+FlowPass is built **Google-native**, deeply integrating 10 distinct Google services to provide enterprise-grade reliability, accessibility, and utility—while maintaining a $0 infrastructure cost footprint on the free tier.
 
 ### 1. 🤖 Google Gemini AI — Core Intelligence
 - **AI Crowd Advisor** (`AIAdvisorPanel.tsx`) — Analyzes live zone flow, gate statuses, and crowd density to produce real-time safety scores (1–100) with actionable risk assessments.
@@ -176,6 +176,10 @@ Containerized via a multi-stage `Dockerfile` (Node.js → nginx) and deployed au
 ### 9. 🔔 Firebase Cloud Messaging (FCM) — Web Push Exit Alerts
 - **Active Push Architecture** — Transforms FlowPass from a passive polling dashboard to an active safety system. Attendees opt-in to receive background push notifications via a root-scope Service Worker.
 - **Serverless Admin Dispatch** — Utilizing the GCP metadata server, the Cloud Run container transparently fetches Google credentials to invoke the FCM HTTP v1 API directly, multicasting push notifications to devices when event zones are unlocked.
+
+### 10. 📝 Google Forms + Sheets API — Live Incident Reporting
+- **Headless Native Integration** — Gate staff can report venue issues (Medical, Blocked Gate, Spill) using a premium, native glassmorphism modal that feels perfectly integrated into the app—bypassing clunky `iframe` UX entirely.
+- **Zero-Cost Telemetry** — Under the hood, the app silently constructs a `POST` request with `no-cors` mode and fires it directly to a Google Form `formResponse` URL. This instantly pre-fills Gate ID, Event ID, and timestamps straight into the organizer's Google Sheet for a 100% free incident database.
 
 ---
 
@@ -281,6 +285,7 @@ FlowPass/
 - **Google Translate** — Read instructions in your native language
 
 ### For Gate Staff
+- **Native Incident Reporting** — One-tap headless Google Forms integration for logging medical, spill, or technical issues instantly to the organizer's Google Sheet
 - **QR Scanner** — Camera-based pass validation with instant feedback (VALID / USED / WRONG GATE / ZONE NOT OPEN)
 - **Override capability** — Staff can override validation for edge cases (logged for audit)
 - **Shift stats** — Tracks checked, valid, invalid, overrides per shift
@@ -458,6 +463,8 @@ gcloud builds submit --config cloudbuild.yaml
 | `VITE_GEMINI_API_KEY` | ⬜ Optional | Google Gemini API key (AI features degrade gracefully without it) |
 | `VITE_GOOGLE_MAPS_API_KEY` | ⬜ Optional | Maps Embed API key (Map features hide gracefully without it) |
 | `VITE_GA_MEASUREMENT_ID` | ⬜ Optional | Google Analytics 4 measurement ID |
+| `VITE_FIREBASE_API_KEY` | ⬜ Optional | Firebase Cloud Messaging configuration |
+| `VITE_INCIDENT_FORM_URL` | ⬜ Optional | Google Forms `formResponse` URL for headless incident reporting |
 
 > **Security:** No secret keys are ever injected into the client bundle. The `vite.config.ts` explicitly sets `define: {}` to prevent accidental exposure.
 
