@@ -3,10 +3,13 @@
  *
  * Displays a chronological feed of organiser announcements on the
  * attendee's live pass view. Recent items (< 5 min) are highlighted.
+ * Each announcement includes a TTS audio button powered by
+ * Google Cloud Text-to-Speech.
  */
 
 import { useState, useEffect } from 'react';
 import { Megaphone } from 'lucide-react';
+import AnnouncementAudio from './AnnouncementAudio';
 import type { FlowAnnouncement } from '../../types';
 
 interface AnnouncementFeedProps {
@@ -58,7 +61,10 @@ export default function AnnouncementFeed({ announcements }: AnnouncementFeedProp
                 {newItem && (
                   <div className="absolute top-0 left-0 w-1 h-full bg-amber-500 animate-pulse" />
                 )}
-                <p className="text-lg leading-relaxed mb-3">{ann.message}</p>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <p className="text-lg leading-relaxed flex-1">{ann.message}</p>
+                  <AnnouncementAudio text={ann.message} />
+                </div>
                 <div className="flex items-center gap-3 text-xs text-dim font-medium">
                   <span>{getTimeAgo(ann.created_at)}</span>
                   {newItem && (

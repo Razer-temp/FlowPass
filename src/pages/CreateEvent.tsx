@@ -21,6 +21,7 @@ import { sanitizeEventField } from '../lib/sanitize';
 import DatePicker from '../components/ui/DatePicker';
 import TimePicker from '../components/ui/TimePicker';
 import { trackEvent } from '../lib/analytics';
+import VenueMap from '../components/pass/VenueMap';
 
 interface EventDraft {
   eventName: string;
@@ -249,6 +250,13 @@ export default function CreateEvent() {
                   placeholder="e.g. Wankhede Stadium, Mumbai"
                   className="w-full bg-background border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-dim/50 focus:outline-none focus:border-go transition-colors"
                 />
+
+                {/* Live venue map preview — powered by Google Maps Embed */}
+                {draft.venueName.length > 3 && (
+                  <div className="mt-3">
+                    <VenueMap venueName={draft.venueName} />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-6">
@@ -531,6 +539,13 @@ export default function CreateEvent() {
                   <div className="font-bold text-lg font-mono text-go">{draft.pin}</div>
                 </div>
               </div>
+
+              {/* Venue Map Preview — Final confirmation */}
+              {draft.venueName && (
+                <div className="px-6 pb-4">
+                  <VenueMap venueName={draft.venueName} />
+                </div>
+              )}
 
               <div className="p-6 border-t border-white/10 bg-white/[0.02]">
                 <h3 className="font-mono text-sm tracking-widest text-dim uppercase flex items-center gap-2 mb-6">

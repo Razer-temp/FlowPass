@@ -15,6 +15,9 @@ import LivePassCard from '../components/pass/LivePassCard';
 import GateStatus from '../components/pass/GateStatus';
 import AnnouncementFeed from '../components/pass/AnnouncementFeed';
 import HoldToConfirmButton from '../components/pass/HoldToConfirmButton';
+import VenueMap from '../components/pass/VenueMap';
+import AddToCalendarButton from '../components/pass/AddToCalendarButton';
+import AddToWalletButton from '../components/pass/AddToWalletButton';
 import { REALTIME_POLL_INTERVAL_MS } from '../lib/constants';
 
 export default function PassView() {
@@ -206,10 +209,30 @@ export default function PassView() {
         {/* 2. Gate Status */}
         <GateStatus gates={gates} userGate={pass.gate_id} />
 
-        {/* 3. Announcements */}
+        {/* 3. Google Services Integration */}
+        <div className="mt-6 space-y-1">
+          <h3 className="text-xs font-mono tracking-widest text-dim uppercase mb-3 px-1">Event Tools · Powered by Google</h3>
+
+          {/* 3a. Google Maps — Interactive Venue Location */}
+          <VenueMap venueName={event.venue} />
+
+          {/* 3b. Google Calendar — Add to Calendar */}
+          <AddToCalendarButton
+            eventName={event.name}
+            date={event.date}
+            endTime={event.end_time}
+            venue={event.venue}
+            passUrl={`${window.location.origin}/pass/${pass.id}`}
+          />
+
+          {/* 3c. Google Wallet — Digital Pass for Android */}
+          <AddToWalletButton pass={pass} event={event} zone={zone} />
+        </div>
+
+        {/* 4. Announcements (with Google Cloud TTS audio) */}
         <AnnouncementFeed announcements={announcements.filter(a => a.event_id === pass.event_id)} />
 
-        {/* 4. Exit Confirmation Button */}
+        {/* 5. Exit Confirmation Button */}
         {pass.status === 'ACTIVE' && (
           <HoldToConfirmButton onConfirm={handleExitConfirm} />
         )}

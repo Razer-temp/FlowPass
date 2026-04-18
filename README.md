@@ -139,39 +139,39 @@ When attendees register, a **4-stage pipeline** maps their seat to the optimal z
 
 ## ☁️ Google Services Integration
 
-FlowPass is built **Google-native**, leveraging 5 Google services for enterprise-grade reliability on the free tier:
+## ☁️ Google Services Ecosystem (8x Integration)
+
+FlowPass is built **Google-native**, deeply integrating 8 distinct Google services to provide enterprise-grade reliability, accessibility, and utility—while maintaining a $0 infrastructure cost footprint on the free tier.
 
 ### 1. 🤖 Google Gemini AI — Core Intelligence
+- **AI Crowd Advisor** (`AIAdvisorPanel.tsx`) — Analyzes live zone flow, gate statuses, and crowd density to produce real-time safety scores (1–100) with actionable risk assessments.
+- **Smart Announcement Generation** (`AnnouncementComposer.tsx`) — Crafts context-aware PA announcements based on current event state (active zones, blocked gates, exit progress).
+- **Graceful degradation** — Falls back to rule-based heuristics seamlessly without breaking the UI.
 
-- **AI Crowd Advisor** (`AIAdvisorPanel.tsx`) — Analyzes live zone flow, gate statuses, and crowd density to produce real-time safety scores (1–100) with actionable risk assessments
-- **Smart Announcement Generation** (`AnnouncementComposer.tsx`) — Crafts context-aware PA announcements based on current event state (active zones, blocked gates, exit progress)
-- **Graceful degradation** — Falls back to rule-based heuristics when API key is unavailable or rate-limited
+### 2. 🗺️ Google Maps Embed API — Interactive Navigation
+- **Real-time Previews** — Interactive map dynamically searches and verifies the event venue as the organizer types during the event creation wizard.
+- **Attendee Wayfinding** — Gives attendees a "Get Directions" map embedded directly into their digital pass. 
 
-### 2. 📊 Google Analytics 4 — Behavioral Telemetry
+### 3. 🔊 Google Cloud Text-to-Speech (TTS) — Accessible Audio
+- **Serverless API Proxy** — Custom `/api/tts` Express proxy authenticates with GCP default application credentials effortlessly.
+- **Universal Broadcasts** — Every digital PA announcement on the pass comes with a 🔊 play button to read the text aloud in high-quality neural voice, aiding visually impaired attendees in chaotic environments. Falls back elegantly to Web Speech API.
 
-Deep client-side event tracking across the entire application lifecycle:
-- `event_created` · `pass_registered` · `pass_scanned` · `zone_activated`
-- `gate_status_updated` · `announcement_sent` · `exit_mode_activated`
-- Page view tracking on every route transition
+### 4. 🪪 Google Wallet API — Digital Passes
+- **Wallet Architecture** — Generates a robust **Generic Pass** JSON object containing zone, gate, seat, and QR validation data.
+- **Unsigned JWT Generation** — Constructs a structurally perfect JSON Web Token (JWT) on the client side, Base64-URL encoded with a strict Unicode-safe `TextEncoder` to handle emojis/international characters without crashing.
+- **Graceful Rejection Handling** — Demo environment intercepts Wallet API clicks to prevent user-facing Google 404s, proving architecture readiness while respecting Google Pay Business verification rules.
 
-### 3. 🌐 Google Translate — International Crowds
+### 5. 📅 Google Calendar API — Frictionless Scheduling
+- **Zero-Cost Deep Links** — Automatically parses the event date, times, and venue into a sophisticated Google Calendar event URL schema. Eliminates the need for backend iCal file generation or OAuth scopes.
 
-Native Google Translate widget integration on `BigScreen` and `PassView` pages, allowing international attendees to read live exit instructions in their native language — critical for international sporting events and concerts.
+### 6. 🌐 Google Translate — International Crowds
+- Native Google Translate widget integration on `BigScreen` and `PassView` pages, allowing international attendees to read live exit instructions in their native language—critical for global sporting events.
 
-### 4. ☁️ Google Cloud Run — Serverless Deployment
+### 7. 📊 Google Analytics 4 — Behavioral Telemetry
+Deep client-side event tracking across the entire application lifecycle measuring drop-offs, scan speeds, and interaction paths (`pass_scanned`, `announcement_sent`, `exit_mode_activated`).
 
-The application is containerized via a multi-stage `Dockerfile` (Node.js build → nginx serve) and deployed automatically through Cloud Build. Cloud Run provides:
-- **Auto-scaling** to handle sudden spikes when thousands of attendees open their passes simultaneously
-- **Zero cold-start** for the nginx container
-- **HTTPS by default** with Google-managed TLS certificates
-
-### 5. 🔤 Google Fonts — Premium Typography
-
-Four carefully selected typefaces create a strong visual hierarchy:
-- **Syne** — Headings (bold, modern, commanding)
-- **DM Sans** — Body text (clean, readable)
-- **JetBrains Mono** — Code, countdowns, timestamps
-- **Bebas Neue** — Hero/display text (impactful)
+### 8. ☁️ Google Cloud Run — Serverless Deployment & Fonts
+Containerized via a multi-stage `Dockerfile` (Node.js → nginx) and deployed automatically through Cloud Build for **Auto-scaling** and **Zero cold-start** times. Also utilizes **Google Fonts** (Syne, DM Sans, JetBrains Mono, Bebas Neue) for premium typographic hierarchy.
 
 ---
 
@@ -452,6 +452,7 @@ gcloud builds submit --config cloudbuild.yaml
 | `VITE_SUPABASE_URL` | ✅ | Your Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | ✅ | Supabase anon (public) key — RLS-protected |
 | `VITE_GEMINI_API_KEY` | ⬜ Optional | Google Gemini API key (AI features degrade gracefully without it) |
+| `VITE_GOOGLE_MAPS_API_KEY` | ⬜ Optional | Maps Embed API key (Map features hide gracefully without it) |
 | `VITE_GA_MEASUREMENT_ID` | ⬜ Optional | Google Analytics 4 measurement ID |
 
 > **Security:** No secret keys are ever injected into the client bundle. The `vite.config.ts` explicitly sets `define: {}` to prevent accidental exposure.

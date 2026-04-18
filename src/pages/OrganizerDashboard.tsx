@@ -29,6 +29,7 @@ import AnnouncementComposer from '../components/dashboard/AnnouncementComposer';
 import ActivityLog from '../components/dashboard/ActivityLog';
 import AIAdvisorPanel from '../components/dashboard/AIAdvisorPanel';
 import VenueLanguagePanel from '../components/dashboard/VenueLanguagePanel';
+import VenueMap from '../components/pass/VenueMap';
 import { seedSampleData } from '../lib/seedData';
 
 export default function OrganizerDashboard() {
@@ -386,6 +387,11 @@ export default function OrganizerDashboard() {
                     <h2 className="text-lg font-bold mb-3">Venue Language</h2>
                     <VenueLanguagePanel eventId={event.id} gateStatus={event.gate_status || {}} />
                   </div>
+                  {/* Venue Location Map */}
+                  <div>
+                    <h2 className="text-lg font-bold mb-3">Venue Location</h2>
+                    <VenueMap venueName={event.venue} />
+                  </div>
                   <div>
                     <h2 className="text-lg font-bold mb-3">AI Crowd Advisor</h2>
                     <AIAdvisorPanel
@@ -503,6 +509,15 @@ export default function OrganizerDashboard() {
             {/* ⑥ VENUE LANGUAGE */}
             <section>
               <VenueLanguagePanel eventId={event.id} gateStatus={event.gate_status || {}} />
+            </section>
+
+            {/* ⑥b VENUE LOCATION — Google Maps */}
+            <section>
+              <div className="mb-4">
+                <h2 className="text-2xl font-bold">Venue Location</h2>
+                <p className="text-dim text-sm">Interactive map powered by Google Maps</p>
+              </div>
+              <VenueMap venueName={event.venue} />
             </section>
             
             {/* ⑦ BROADCAST ANNOUNCEMENT */}
